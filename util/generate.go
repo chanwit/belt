@@ -2,9 +2,55 @@ package util
 
 import (
 	"fmt"
+	"os"
+
 	"regexp"
 	"strconv"
 )
+
+type Env struct {}
+
+var DefaultEnv Env
+
+func (e Env) get(key, def string) string {
+	env := os.Getenv(key)
+	if env == "" {
+		return def
+	}
+	return env
+}
+
+func (e Env) AccessToken() string {
+	return e.get("DIGITALOCEAN_ACCESS_TOKEN", "")
+}
+
+func (e Env) Region() string {
+	return e.get("DIGITALOCEAN_REGION", "nyc3")
+}
+
+func (e Env) Image() string {
+	return e.get("DIGITALOCEAN_IMAGE", "ubuntu-15-10-x64")
+}
+
+func (e Env) Size() string {
+	return e.get("DIGITALOCEAN_SIZE", "512mb")
+}
+
+func (e Env) SSHUser() string {
+	return e.get("DIGITALOCEAN_SSH_USER", "root")
+}
+
+func (e Env) SSHPort() string {
+	return e.get("DIGITALOCEAN_SSH_PORT", "22")
+}
+
+func (e Env) SSHKey() string {
+	return e.get("DIGITALOCEAN_SSH_KEY_FINGERPRINT", "")
+}
+
+// --digitalocean-ipv6	DIGITALOCEAN_IPV6	false
+// --digitalocean-private-networking	DIGITALOCEAN_PRIVATE_NETWORKING	false
+// --digitalocean-backups	DIGITALOCEAN_BACKUPS	false
 
 // Generate takes care of IP generation
 func Generate(pattern string) []string {

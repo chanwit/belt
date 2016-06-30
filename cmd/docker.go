@@ -56,6 +56,7 @@ to quickly create a Cobra application.`,
 			"root@"+ip,
 			"docker",
 		}
+
 		cmdArgs = append(cmdArgs, args[pos:]...)
 		sshCmd := exec.Command("ssh", cmdArgs...)
 		sshCmd.Stdin = os.Stdin
