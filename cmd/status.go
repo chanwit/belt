@@ -95,9 +95,11 @@ to quickly create a Cobra application.`,
 				grpStatus[node.Status] = append(grpStatus[node.Status], node)
 			}
 
-			if loop == false {
-				fmt.Printf("%s\t\t%s\t%s\n", "STATUS", "#NODES", "NAMES")
+			if loop {
+				fmt.Println()
 			}
+			fmt.Printf("%s\t\t%s\t%s\n", "STATUS", "#NODES", "NAMES")
+
 			MAX_NAMES_LEN := 56
 			for k, v := range grpStatus {
 				if len(v) != 0 {
@@ -127,7 +129,7 @@ to quickly create a Cobra application.`,
 				return
 			}
 
-			time.Sleep(5 * time.Second)
+			time.Sleep(10 * time.Second)
 			loop = true
 		}
 
