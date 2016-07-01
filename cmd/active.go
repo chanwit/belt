@@ -45,6 +45,7 @@ to quickly create a Cobra application.`,
 		} else if len(args) > 0 {
 			// SET
 			node := args[0]
+
 			err := util.SetActive(node)
 			if err != nil {
 				fmt.Println(err.Error())

@@ -35,21 +35,29 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		RootCmd.ParseFlags(args)
-		node := RootCmd.Flag("master").Value.String()
-		ip := GetIP(node)
 
+		node := RootCmd.Flag("master").Value.String()
 		pos := 0
-		for i, a := range args {
-			if a == "--master" {
-				pos = i + 2
-				break
+		var err error
+		if node != "" {
+			for i, a := range args {
+				if a == "--master" {
+					pos = i + 2
+					break
+				}
+			}
+		} else {
+			node, err = util.GetActive()
+			if err != nil {
+				fmt.Println(err.Error())
+				return
 			}
 		}
 
+		ip := GetIP(node)
+
 		cmdArgs := []string{
 			"-q",
-			// "-i",
-			// pwd+"/id_rsa",
 			"-o",
 			"UserKnownHostsFile=/dev/null",
 			"-o",
@@ -64,7 +72,7 @@ to quickly create a Cobra application.`,
 		sshCmd.Stdout = os.Stdout
 		sshCmd.Stderr = os.Stderr
 
-		err := sshCmd.Run()
+		err = sshCmd.Run()
 		if err != nil {
 			fmt.Println(err.Error())
 			return
