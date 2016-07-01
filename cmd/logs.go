@@ -62,9 +62,6 @@ to quickly create a Cobra application.`,
 		}
 
 		sshCmd := exec.Command("ssh", cmdArgs...)
-		//sshCmd.Stdin = os.Stdin
-		//sshCmd.Stdout = os.Stdout
-		//sshCmd.Stderr = os.Stderr
 
 		bout, err := sshCmd.Output()
 		if err != nil {
