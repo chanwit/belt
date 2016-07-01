@@ -23,6 +23,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	flagName = "host"
+)
+
 // dockerCmd represents the docker command
 var dockerCmd = &cobra.Command{
 	Use:   "docker",
@@ -36,12 +40,12 @@ to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		RootCmd.ParseFlags(args)
 
-		node := RootCmd.Flag("master").Value.String()
+		node := RootCmd.Flag(flagName).Value.String()
 		pos := 0
 		var err error
 		if node != "" {
 			for i, a := range args {
-				if a == "--master" {
+				if a == "--"+flagName {
 					pos = i + 2
 					break
 				}
@@ -107,7 +111,7 @@ func init() {
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	RootCmd.Flags().String("master", "", "use the specific node to control Docker cluster")
+	RootCmd.Flags().String(flagName, "", "use the specific node to control Docker cluster")
 
 	dockerCmd.DisableFlagParsing = true
 }
