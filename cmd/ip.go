@@ -16,24 +16,27 @@ package cmd
 
 import (
 	"fmt"
-	"os"
+	//"os"
 	"os/exec"
 	"strings"
 
+	"github.com/chanwit/belt/util"
 	"github.com/spf13/cobra"
 )
 
 func GetIP(node string) string {
 
-	pwd, err := os.Getwd()
-	if err != nil {
-		fmt.Println(err.Error())
-		return ""
-	}
+	/*
+		pwd, err := os.Getwd()
+		if err != nil {
+			fmt.Println(err.Error())
+			return ""
+		}
+	*/
 
 	doArgs := []string{
-		"-c",
-		pwd + "/.doctlcfg",
+		"-t",
+		util.DegitalOcean.AccessToken(),
 		"compute",
 		"droplet",
 		"ls",
@@ -56,7 +59,7 @@ func GetIP(node string) string {
 // ipCmd represents the ip command
 var ipCmd = &cobra.Command{
 	Use:   "ip",
-	Short: "A brief description of your command",
+	Short: "show the IP address for the compute node",
 	Long: `A longer description that spans multiple lines and likely contains examples
 and usage of using your command. For example:
 

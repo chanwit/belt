@@ -23,7 +23,7 @@ import (
 // swarmCmd represents the swarm command
 var swarmCmd = &cobra.Command{
 	Use:   "swarm",
-	Short: "A brief description of your command",
+	Short: "wrapper commands for forming Swarm clusters",
 	Long: `A longer description that spans multiple lines and likely contains examples
 and usage of using your command. For example:
 

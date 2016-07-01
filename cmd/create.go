@@ -16,7 +16,7 @@ package cmd
 
 import (
 	"fmt"
-	"os"
+	// "os"
 	"os/exec"
 	"strings"
 
@@ -27,7 +27,7 @@ import (
 // createCmd represents the create command
 var createCmd = &cobra.Command{
 	Use:   "create",
-	Short: "A brief description of your command",
+	Short: "create a set of machines",
 	Long: `A longer description that spans multiple lines and likely contains examples
 and usage of using your command. For example:
 
@@ -37,24 +37,19 @@ to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		size := args[0]
 		boxes := util.Generate(args[1])
-		pwd, err := os.Getwd()
-		if err != nil {
-			fmt.Println(err.Error())
-			return
-		}
 
 		doArgs := []string{
-			"-c",
-			pwd + "/.doctlcfg",
+			"-t",
+			util.DegitalOcean.AccessToken(),
 			"compute",
 			"droplet",
 			"create",
 			"--region",
-			util.DefaultEnv.Region(),
+			util.DegitalOcean.Region(),
 			"--ssh-keys",
-			util.DefaultEnv.SSHKey(),
+			util.DegitalOcean.SSHKey(),
 			"--image",
-			util.DefaultEnv.Image(),
+			util.DegitalOcean.Image(),
 			"--size",
 			size,
 		}

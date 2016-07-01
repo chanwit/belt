@@ -16,6 +16,7 @@ package cmd
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"sync"
@@ -36,7 +37,11 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		master := args[0]
-		_/*pwd*/, err := os.Getwd()
+		if net.ParseIP(master) == nil {
+			master = GetIP(master)
+		}
+
+		_ /*pwd*/, err := os.Getwd()
 		if err != nil {
 			fmt.Println(err.Error())
 			return
@@ -63,13 +68,11 @@ to quickly create a Cobra application.`,
 						ip := GetIP(node)
 						sshCmd := exec.Command("ssh",
 							"-q",
-							// "-i",
-							// pwd+"/id_rsa",
 							"-o",
-							"UserKnownHostsFile=nul",
+							"UserKnownHostsFile=/dev/null",
 							"-o",
 							"StrictHostKeyChecking=no",
-							"root@"+ip,
+							util.DegitalOcean.SSHUser()+"@"+ip,
 							"docker", "swarm", "join", master+":2377",
 						)
 						bout, err := sshCmd.CombinedOutput()

@@ -17,12 +17,12 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/chanwit/belt/util"
 	"github.com/spf13/cobra"
 )
 
@@ -34,7 +34,7 @@ type status struct {
 // statusCmd represents the status command
 var statusCmd = &cobra.Command{
 	Use:   "status",
-	Short: "show status of machines",
+	Short: "show status of compute nodes",
 	Long: `A longer description that spans multiple lines and likely contains examples
 and usage of using your command. For example:
 
@@ -42,12 +42,6 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-
-		pwd, err := os.Getwd()
-		if err != nil {
-			fmt.Println(err.Error())
-			return
-		}
 
 		wait := cmd.Flag("wait").Value.String()
 		what := ""
@@ -61,6 +55,7 @@ to quickly create a Cobra application.`,
 				return
 			}
 
+			var err error
 			num, err = strconv.Atoi(parts[1])
 			if err != nil {
 				fmt.Println(err.Error())
@@ -69,8 +64,8 @@ to quickly create a Cobra application.`,
 		}
 
 		doArgs := []string{
-			"-c",
-			pwd + "/.doctlcfg",
+			"-t",
+			util.DegitalOcean.AccessToken(),
 			"-o",
 			"json",
 			"compute",

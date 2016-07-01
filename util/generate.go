@@ -1,19 +1,23 @@
 package util
 
 import (
+	"errors"
 	"fmt"
+	"gopkg.in/yaml.v2"
+	"io/ioutil"
 	"os"
-
 	"regexp"
 	"strconv"
+
+	"github.com/spf13/viper"
 )
 
-type Env struct {}
+type Env struct{}
 
-var DefaultEnv Env
+var DegitalOcean Env
 
 func (e Env) get(key, def string) string {
-	env := os.Getenv(key)
+	env := viper.GetString(key)
 	if env == "" {
 		return def
 	}
@@ -21,31 +25,31 @@ func (e Env) get(key, def string) string {
 }
 
 func (e Env) AccessToken() string {
-	return e.get("DIGITALOCEAN_ACCESS_TOKEN", "")
+	return e.get("digitalocean.access-token", "")
 }
 
 func (e Env) Region() string {
-	return e.get("DIGITALOCEAN_REGION", "nyc3")
+	return e.get("digitalocean.region", "nyc3")
 }
 
 func (e Env) Image() string {
-	return e.get("DIGITALOCEAN_IMAGE", "ubuntu-15-10-x64")
+	return e.get("digitalocean.image", "ubuntu-15-10-x64")
 }
 
 func (e Env) Size() string {
-	return e.get("DIGITALOCEAN_SIZE", "512mb")
+	return e.get("digitalocean.size", "512mb")
 }
 
 func (e Env) SSHUser() string {
-	return e.get("DIGITALOCEAN_SSH_USER", "root")
+	return e.get("digitalocean.ssh_user", "root")
 }
 
 func (e Env) SSHPort() string {
-	return e.get("DIGITALOCEAN_SSH_PORT", "22")
+	return e.get("digitalocean.ssh_port", "22")
 }
 
 func (e Env) SSHKey() string {
-	return e.get("DIGITALOCEAN_SSH_KEY_FINGERPRINT", "")
+	return e.get("digitalocean.ssh_key_fingerprint", "")
 }
 
 // --digitalocean-ipv6	DIGITALOCEAN_IPV6	false
@@ -78,4 +82,35 @@ func Generate(pattern string) []string {
 	}
 
 	return result
+}
+
+const ACTIVE_HOST_FILE = ".active_node"
+
+func GetActive() (string, error) {
+	envs := make(map[string]string)
+	bytes, err := ioutil.ReadFile(ACTIVE_HOST_FILE)
+	if err != nil {
+		return "", errors.New("There is no active node.")
+	}
+
+	err = yaml.Unmarshal(bytes, &envs)
+	if err == nil {
+		return envs["name"], nil
+	}
+
+	return "", err
+}
+
+func SetActive(node string) error {
+	f, err := os.Create(ACTIVE_HOST_FILE)
+	defer f.Close()
+	if err != nil {
+		return err
+	}
+
+	// save active config
+	fmt.Fprintf(f, "---\n")
+	fmt.Fprintf(f, "name: %s\n", node)
+
+	return nil
 }

@@ -72,8 +72,8 @@ to quickly create a Cobra application.`,
 		}
 
 		doArgs := []string{
-			"-c",
-			pwd + "/.doctlcfg",
+			"-t",
+			util.DegitalOcean.AccessToken(),
 			"compute",
 			"droplet",
 			"rm",

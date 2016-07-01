@@ -19,6 +19,7 @@ import (
 	"os"
 	"os/exec"
 
+	"github.com/chanwit/belt/util"
 	"github.com/spf13/cobra"
 )
 
@@ -33,14 +34,14 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-	RootCmd.ParseFlags(args)
-		node := RootCmd.Flag("host").Value.String()
+		RootCmd.ParseFlags(args)
+		node := RootCmd.Flag("master").Value.String()
 		ip := GetIP(node)
 
 		pos := 0
 		for i, a := range args {
-			if a == "--host" {
-				pos = i+2
+			if a == "--master" {
+				pos = i + 2
 				break
 			}
 		}
@@ -50,10 +51,10 @@ to quickly create a Cobra application.`,
 			// "-i",
 			// pwd+"/id_rsa",
 			"-o",
-			"UserKnownHostsFile=nul",
+			"UserKnownHostsFile=/dev/null",
 			"-o",
 			"StrictHostKeyChecking=no",
-			"root@"+ip,
+			util.DegitalOcean.SSHUser() + "@" + ip,
 			"docker",
 		}
 
@@ -82,7 +83,7 @@ func init() {
 		pos := 0
 		for i, a := range args {
 			if a == "docker" {
-				pos = i+1
+				pos = i + 1
 				break
 			}
 		}
@@ -98,7 +99,7 @@ func init() {
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	RootCmd.Flags().String("host","","set active host to run Docker command")
+	RootCmd.Flags().String("master", "", "use the specific node to control Docker cluster")
 
 	dockerCmd.DisableFlagParsing = true
 }

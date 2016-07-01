@@ -19,6 +19,7 @@ import (
 	"os"
 	"os/exec"
 
+	"github.com/chanwit/belt/util"
 	"github.com/spf13/cobra"
 )
 
@@ -36,7 +37,7 @@ to quickly create a Cobra application.`,
 		node := args[0]
 		ip := GetIP(node)
 
-		_/*pwd*/, err := os.Getwd()
+		_ /*pwd*/, err := os.Getwd()
 		if err != nil {
 			fmt.Println(err.Error())
 			return
@@ -44,13 +45,11 @@ to quickly create a Cobra application.`,
 
 		sshCmd := exec.Command("ssh",
 			"-q",
-			// "-i",
-			// pwd+"/id_rsa",
 			"-o",
-			"UserKnownHostsFile=nul",
+			"UserKnownHostsFile=/dev/null",
 			"-o",
 			"StrictHostKeyChecking=no",
-			"root@"+ip,
+			util.DegitalOcean.SSHUser()+"@"+ip,
 			"docker", "swarm", "init",
 		)
 		bout, err := sshCmd.CombinedOutput()
@@ -58,6 +57,8 @@ to quickly create a Cobra application.`,
 			fmt.Println(err.Error())
 		}
 		fmt.Print(string(bout))
+
+		util.SetActive(node)
 	},
 }
 
