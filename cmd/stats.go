@@ -23,6 +23,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/chanwit/belt/ssh"
 	"github.com/chanwit/belt/util"
 	"github.com/spf13/cobra"
 )
@@ -41,6 +42,7 @@ to quickly create a Cobra application.`,
 
 		service := args[0]
 		ch := make(chan string)
+		ips := CacheIP()
 
 		node := RootCmd.Flag(flagName).Value.String()
 		var err error
@@ -51,7 +53,7 @@ to quickly create a Cobra application.`,
 				return
 			}
 		}
-		ip := GetIP(node)
+		ip := ips[node]
 
 		cmdArgs := []string{
 			"-q",
@@ -71,33 +73,39 @@ to quickly create a Cobra application.`,
 			return
 		}
 
+		clients := make(map[string]ssh.Client)
 		lines := strings.Split(strings.TrimSpace(string(bout)), "\n")
+
 		for _, line := range lines {
 			parts := strings.Fields(line)
 			cid := parts[1] + "." + parts[0]
 			pos := strings.LastIndex(line, " ")
 			targetNode := line[pos+1:]
-			ip := GetIP(targetNode)
+			ip := ips[targetNode]
+
+			// TODO resolve key
+			// 1. if cygwin
+			// 2. if windows
+			// 3 else use $HOME
+			if _, exist := clients[targetNode]; exist == false {
+				clients[targetNode], err = ssh.NewNativeClient(
+					util.DegitalOcean.SSHUser(), ip, util.DegitalOcean.SSHPort(),
+					&ssh.Auth{Keys: []string{"C:/cygwin/home/chanwit/.ssh/id_rsa"}})
+			}
+
 			go func(ip, cid, targetNode string, ch chan string) {
 				for {
-					cmdArgs := []string{
-						"-q",
-						"-o",
-						"UserKnownHostsFile=/dev/null",
-						"-o",
-						"StrictHostKeyChecking=no",
-						util.DegitalOcean.SSHUser() + "@" + ip,
-						"docker", "stats", cid, "--no-stream",
-					}
-
-					sshCmd := exec.Command("ssh", cmdArgs...)
-					bout, err := sshCmd.Output()
+					output, err := clients[targetNode].Output("docker stats " + cid + " --no-stream")
 					if err != nil {
-						// ch <- err.Error()
-						break
+						fmt.Println("error: " + err.Error())
+						// break
 					}
 
-					lines := strings.SplitN(strings.TrimSpace(string(bout)), "\n", 2)
+					lines := strings.SplitN(strings.TrimSpace(output), "\n", 2)
+					if len(lines) != 2 {
+						continue
+					}
+
 					ch <- lines[1]
 
 					time.Sleep(1 * time.Second)

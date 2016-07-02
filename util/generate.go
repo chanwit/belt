@@ -44,8 +44,12 @@ func (e Env) SSHUser() string {
 	return e.get("digitalocean.ssh_user", "root")
 }
 
-func (e Env) SSHPort() string {
-	return e.get("digitalocean.ssh_port", "22")
+func (e Env) SSHPort() int {
+	result, err := strconv.Atoi(e.get("digitalocean.ssh_port", "22"))
+	if err != nil {
+		return -1
+	}
+	return result
 }
 
 func (e Env) SSHKey() string {

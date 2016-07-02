@@ -46,20 +46,27 @@ to quickly create a Cobra application.`,
 		wait := cmd.Flag("wait").Value.String()
 		what := ""
 		num := 0
+		// name := ""
 
 		if wait != "" {
+			// normal format
+			// active=5
 			parts := strings.SplitN(wait, "=", 2)
 			what = parts[0]
-			if what != "new" && what != "active" {
-				fmt.Println("Support only 'new' and 'active' at the moment")
-				return
-			}
 
-			var err error
-			num, err = strconv.Atoi(parts[1])
-			if err != nil {
-				fmt.Println(err.Error())
-				return
+			if what != "new" && what != "active" {
+				// TODO
+				// status to check
+				// this format: mon=active
+				// what = parts[1]
+				// name = parts[0]
+			} else {
+				var err error
+				num, err = strconv.Atoi(parts[1])
+				if err != nil {
+					fmt.Println(err.Error())
+					return
+				}
 			}
 		}
 

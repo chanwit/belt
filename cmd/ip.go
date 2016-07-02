@@ -24,15 +24,34 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func GetIP(node string) string {
+func CacheIP() map[string]string {
+	doArgs := []string{
+		"-t",
+		util.DegitalOcean.AccessToken(),
+		"compute",
+		"droplet",
+		"ls",
+		"--format",
+		"Name,PublicIPv4",
+		"--no-header",
+	}
 
-	/*
-		pwd, err := os.Getwd()
-		if err != nil {
-			fmt.Println(err.Error())
-			return ""
-		}
-	*/
+	cmdExec := exec.Command("doctl", doArgs...)
+	bout, err := cmdExec.Output()
+	if err != nil {
+		fmt.Println(err.Error())
+		return nil
+	}
+	lines := strings.Split(strings.TrimSpace(string(bout)), "\n")
+	result := make(map[string]string)
+	for _, line := range lines {
+		f := strings.Fields(line)
+		result[f[0]] = f[1]
+	}
+	return result
+}
+
+func GetIP(node string) string {
 
 	doArgs := []string{
 		"-t",

@@ -58,28 +58,29 @@ to quickly create a Cobra application.`,
 			}
 		}
 
-		ip := GetIP(node)
+		ips := CacheIP()
+		nodes := util.Generate(node)
 
-		cmdArgs := []string{
-			"-q",
-			"-o",
-			"UserKnownHostsFile=/dev/null",
-			"-o",
-			"StrictHostKeyChecking=no",
-			util.DegitalOcean.SSHUser() + "@" + ip,
-			"docker",
-		}
+		for _, n := range nodes {
+			ip := ips[n]
 
-		cmdArgs = append(cmdArgs, args[pos:]...)
-		sshCmd := exec.Command("ssh", cmdArgs...)
-		sshCmd.Stdin = os.Stdin
-		sshCmd.Stdout = os.Stdout
-		sshCmd.Stderr = os.Stderr
+			cmdArgs := []string{
+				"-q",
+				"-o",
+				"UserKnownHostsFile=/dev/null",
+				"-o",
+				"StrictHostKeyChecking=no",
+				util.DegitalOcean.SSHUser() + "@" + ip,
+				"docker",
+			}
 
-		err = sshCmd.Run()
-		if err != nil {
-			fmt.Println(err.Error())
-			return
+			cmdArgs = append(cmdArgs, args[pos:]...)
+			sshCmd := exec.Command("ssh", cmdArgs...)
+			sshCmd.Stdin = os.Stdin
+			sshCmd.Stdout = os.Stdout
+			sshCmd.Stderr = os.Stderr
+
+			sshCmd.Run()
 		}
 
 	},
