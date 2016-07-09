@@ -145,5 +145,5 @@ to quickly create a Cobra application.`,
 
 func init() {
 	RootCmd.AddCommand(statusCmd)
-	statusCmd.Flags().String("wait", "", "wait until the criteria match")
+	statusCmd.Flags().StringP("wait", "w", "", "wait until the criteria match")
 }

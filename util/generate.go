@@ -6,8 +6,12 @@ import (
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
+	"os/exec"
+	"path"
 	"regexp"
+	"runtime"
 	"strconv"
+	"strings"
 
 	"github.com/spf13/viper"
 )
@@ -117,4 +121,22 @@ func SetActive(node string) error {
 	fmt.Fprintf(f, "name: %s\n", node)
 
 	return nil
+}
+
+func GetHomeDir() string {
+	if runtime.GOOS == "windows" {
+		if os.Getenv("CYGWIN") != "" {
+			bout, err := exec.Command("cygpath", "-w", os.Getenv("HOME")).Output()
+			if err != nil {
+				return ""
+			}
+			return strings.TrimSpace(string(bout))
+		}
+		return os.Getenv("USERPROFILE")
+	}
+	return os.Getenv("HOME")
+}
+
+func DefaultSSHPrivateKeys() []string {
+	return []string{path.Join(GetHomeDir(), ".ssh", "id_rsa")}
 }

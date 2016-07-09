@@ -18,9 +18,9 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"os/exec"
 	"sync"
 
+	"github.com/chanwit/belt/ssh"
 	"github.com/chanwit/belt/util"
 	"github.com/spf13/cobra"
 )
@@ -36,9 +36,14 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		master := args[0]
-		if net.ParseIP(master) == nil {
-			master = GetIP(master)
+		prime := args[0]
+
+		isManager := cmd.Flag("manager").Value.String() == "true"
+		secret := cmd.Flag("secret").Value.String()
+
+		ips := CacheIP()
+		if net.ParseIP(prime) == nil {
+			prime = ips[prime]
 		}
 
 		_ /*pwd*/, err := os.Getwd()
@@ -46,11 +51,16 @@ to quickly create a Cobra application.`,
 			fmt.Println(err.Error())
 			return
 		}
-		nodes := util.Generate(args[1])
+		nodes := []string{}
+		for i := 1; i < len(args); i++ {
+			nodes = append(nodes, util.Generate(args[i])...)
+		}
+
+		MAX := 30
 
 		num := len(nodes)
-		loop := num / 10
-		rem := num % 10
+		loop := num / MAX
+		rem := num % MAX
 		if rem != 0 {
 			loop++
 		}
@@ -58,28 +68,34 @@ to quickly create a Cobra application.`,
 		for i := 1; i <= loop; i++ {
 			var wg sync.WaitGroup
 
-			for j := 0; j < 10; j++ {
-				offset := (i-1)*10 + j
+			for j := 0; j < MAX; j++ {
+				offset := (i-1)*MAX + j
 				if offset < len(nodes) {
 					node := nodes[offset]
 					wg.Add(1)
 					go func(node string) {
 						defer wg.Done()
-						ip := GetIP(node)
-						sshCmd := exec.Command("ssh",
-							"-q",
-							"-o",
-							"UserKnownHostsFile=/dev/null",
-							"-o",
-							"StrictHostKeyChecking=no",
-							util.DegitalOcean.SSHUser()+"@"+ip,
-							"docker", "swarm", "join", master+":2377",
-						)
-						bout, err := sshCmd.CombinedOutput()
+						ip := ips[node]
+						sshcli, err := ssh.NewNativeClient(
+							util.DegitalOcean.SSHUser(), ip, util.DegitalOcean.SSHPort(),
+							&ssh.Auth{Keys: util.DefaultSSHPrivateKeys()})
+						if err != nil {
+							fmt.Println(err.Error())
+							return
+						}
+
+						cmd := ""
+						if isManager {
+							cmd = "docker swarm join --manager " + prime + ":2377" + " --secret " + secret
+						} else {
+							cmd = "docker swarm join " + prime + ":2377" + " --secret " + secret
+						}
+						sout, err := sshcli.Output(cmd)
 						if err != nil {
 							fmt.Println(err.Error())
 						}
-						fmt.Print(node + ": " + string(bout))
+
+						fmt.Print(node + ": " + sout)
 					}(node)
 				}
 			}
@@ -88,6 +104,7 @@ to quickly create a Cobra application.`,
 
 		}
 
+		// set
 	},
 }
 
@@ -103,5 +120,7 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// joinCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-
+	joinCmd.Flags().Bool("manager", false, "join as manager")
+	joinCmd.Flags().BoolP("enable-remote", "m", false, "allow remote connection to Engine")
+	joinCmd.Flags().StringP("secret", "s", "", "secret for cluster")
 }

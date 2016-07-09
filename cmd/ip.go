@@ -15,16 +15,25 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
-	//"os"
-	"os/exec"
-	"strings"
 
+	"github.com/apcera/libretto/virtualmachine/digitalocean"
 	"github.com/chanwit/belt/util"
 	"github.com/spf13/cobra"
 )
 
-func CacheIP() map[string]string {
+func GetPublicIP(ips *digitalocean.Networks) string {
+	for _, ip := range ips.V4 {
+		if ip.Type == "public" {
+			return ip.IPAddress
+		}
+	}
+	return ""
+}
+
+/*
+func CacheIPAndRegion() map[string][2]string {
 	doArgs := []string{
 		"-t",
 		util.DegitalOcean.AccessToken(),
@@ -32,7 +41,7 @@ func CacheIP() map[string]string {
 		"droplet",
 		"ls",
 		"--format",
-		"Name,PublicIPv4",
+		"Name,PublicIPv4,Region",
 		"--no-header",
 	}
 
@@ -46,33 +55,41 @@ func CacheIP() map[string]string {
 	result := make(map[string]string)
 	for _, line := range lines {
 		f := strings.Fields(line)
-		result[f[0]] = f[1]
+		// name -> ip, region
+		// region -> names
+		result[f[0]] = [2]string{f[1],f[2]}
+	}
+	return result
+}
+*/
+
+func CacheIP() map[string]string {
+	token := util.DegitalOcean.AccessToken()
+	resp, err := digitalocean.GetDroplets(token)
+	if err != nil {
+		return nil
+	}
+
+	result := make(map[string]string)
+	for _, d := range resp.Droplets {
+		result[d.Name] = GetPublicIP(d.Networks)
 	}
 	return result
 }
 
 func GetIP(node string) string {
-
-	doArgs := []string{
-		"-t",
-		util.DegitalOcean.AccessToken(),
-		"compute",
-		"droplet",
-		"ls",
-		"--format",
-		"PublicIPv4",
-		"--no-header",
-		node,
-	}
-
-	cmdExec := exec.Command("doctl", doArgs...)
-	bout, err := cmdExec.Output()
+	token := util.DegitalOcean.AccessToken()
+	resp, err := digitalocean.GetDroplets(token)
 	if err != nil {
-		fmt.Println(err.Error())
 		return ""
 	}
-	return strings.TrimSpace(string(bout))
 
+	for _, d := range resp.Droplets {
+		if d.Name == node {
+			return GetPublicIP(d.Networks)
+		}
+	}
+	return ""
 }
 
 // ipCmd represents the ip command
@@ -85,6 +102,12 @@ and usage of using your command. For example:
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) != 1 {
+			return errors.New("require a node name as the argument")
+		}
+		return nil
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println(GetIP(args[0]))
 	},

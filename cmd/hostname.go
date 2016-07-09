@@ -16,17 +16,17 @@ package cmd
 
 import (
 	"fmt"
-	"os/exec"
-	"strings"
+	"sync"
 
+	"github.com/chanwit/belt/ssh"
 	"github.com/chanwit/belt/util"
 	"github.com/spf13/cobra"
 )
 
-// createCmd represents the create command
-var createCmd = &cobra.Command{
-	Use:   "create",
-	Short: "create a set of machines",
+// hostnameCmd represents the hostname command
+var hostnameCmd = &cobra.Command{
+	Use:   "hostname",
+	Short: "correct hostnames",
 	Long: `A longer description that spans multiple lines and likely contains examples
 and usage of using your command. For example:
 
@@ -34,75 +34,62 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		size := args[0]
-
-		for i := 1; i < len(args); i++ {
-
-			region := cmd.Flag("region").Value.String()
-
-			if region == "" {
-				// check prefix: {region}-{node}{num}
-				pattern := args[i]
-				parts := strings.SplitN(pattern, "-", 2)
-				if len(parts) == 2 {
-					region = parts[0]
-				}
-			}
-
-			if region == "" {
-				region = util.DegitalOcean.Region()
-			}
-
-			boxes := util.Generate(args[i])
-
-			doArgs := []string{
-				"-t",
-				util.DegitalOcean.AccessToken(),
-				"compute",
-				"droplet",
-				"create",
-				"--region",
-				region,
-				"--ssh-keys",
-				util.DegitalOcean.SSHKey(),
-				"--image",
-				util.DegitalOcean.Image(),
-				"--size",
-				size,
-			}
-
-			cmdExec := exec.Command("doctl", append(doArgs, boxes...)...)
-			bout, err := cmdExec.Output()
-			if err != nil {
-				fmt.Println(err.Error())
-				fmt.Print(string(bout))
-				return
-			}
-
-			lines := strings.Split(string(bout), "\n")
-			for i, line := range lines {
-				if i == 0 || i%2 == 1 {
-					fmt.Println(line)
-				}
-			}
-			fmt.Println()
-
+		ips := CacheIP()
+		nodes := []string{}
+		for i := 0; i < len(args); i++ {
+			nodes = append(nodes, util.Generate(args[i])...)
 		}
 
+		MAX := 30
+
+		num := len(nodes)
+		loop := num / MAX
+		rem := num % MAX
+		if rem != 0 {
+			loop++
+		}
+
+		for i := 1; i <= loop; i++ {
+			var wg sync.WaitGroup
+
+			for j := 0; j < MAX; j++ {
+				offset := (i-1)*MAX + j
+				if offset < len(nodes) {
+					node := nodes[offset]
+					wg.Add(1)
+					go func(node string) {
+						defer wg.Done()
+						ip := ips[node]
+						sshcli, err := ssh.NewNativeClient(
+							util.DegitalOcean.SSHUser(), ip, util.DegitalOcean.SSHPort(),
+							&ssh.Auth{Keys: util.DefaultSSHPrivateKeys()})
+						if err != nil {
+							fmt.Println(err.Error())
+							return
+						}
+						sshcli.Output("hostname " + node)
+						sshcli.Output("service docker restart")
+
+						fmt.Println(node)
+					}(node)
+				}
+			}
+			wg.Wait()
+		}
 	},
 }
 
 func init() {
-	RootCmd.AddCommand(createCmd)
+	RootCmd.AddCommand(hostnameCmd)
 
 	// Here you will define your flags and configuration settings.
 
 	// Cobra supports Persistent Flags which will work for this command
 	// and all subcommands, e.g.:
-	// createCmd.PersistentFlags().String("foo", "", "A help for foo")
+	// hostnameCmd.PersistentFlags().String("foo", "", "A help for foo")
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	createCmd.Flags().String("region", "", "override region setting")
+	// hostnameCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 
 }

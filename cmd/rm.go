@@ -36,7 +36,12 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		boxes := util.Generate(args[0])
+
+		boxes := []string{}
+		for _, arg := range args {
+			boxes = append(boxes, util.Generate(arg)...)
+		}
+
 		boxesMap := make(map[string]bool)
 		for _, box := range boxes {
 			boxesMap[box] = true
@@ -71,6 +76,11 @@ to quickly create a Cobra application.`,
 			}
 		}
 
+		if len(boxToRm) == 0 {
+			fmt.Println("nodes are not existed")
+			return
+		}
+
 		doArgs := []string{
 			"-t",
 			util.DegitalOcean.AccessToken(),
@@ -83,6 +93,13 @@ to quickly create a Cobra application.`,
 		rmOut, err := cmdExec.CombinedOutput()
 		if err != nil {
 			fmt.Println(err.Error())
+		}
+
+		machineExec := exec.Command("docker-machine", append([]string{"rm", "-y"}, boxToRm...)...)
+		err = machineExec.Run()
+		if err != nil {
+			// if Host does not exist, then should be silent
+			// fmt.Println("machine: " + err.Error())
 		}
 
 		// print output from err, if exists

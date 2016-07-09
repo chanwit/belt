@@ -19,6 +19,7 @@ import (
 	"os"
 	"os/exec"
 
+	"github.com/chanwit/belt/ssh"
 	"github.com/chanwit/belt/util"
 	"github.com/spf13/cobra"
 )
@@ -37,26 +38,51 @@ to quickly create a Cobra application.`,
 		node := args[0]
 		ip := GetIP(node)
 
+		secret := cmd.Flag("secret").Value.String()
+		if secret == "" {
+			fmt.Println("secret must be specified")
+			return
+		}
+
+		if cmd.Flag("enable-remote").Value.String() == "true" {
+
+			machineCmd := exec.Command("docker-machine",
+				// "--debug",
+				"create",
+				"-d", "generic",
+				"--generic-ip-address="+ip,
+				node,
+			)
+			machineCmd.Stdin = os.Stdin
+			// machineCmd.Stdout = os.Stdout
+			machineCmd.Stderr = os.Stderr
+			fmt.Println("enable remote access with docker-machine ...")
+			err := machineCmd.Run()
+			if err != nil {
+				fmt.Println("Cannot execute docker-machine: " + err.Error())
+				return
+			}
+		}
+
 		_ /*pwd*/, err := os.Getwd()
 		if err != nil {
 			fmt.Println(err.Error())
 			return
 		}
 
-		sshCmd := exec.Command("ssh",
-			"-q",
-			"-o",
-			"UserKnownHostsFile=/dev/null",
-			"-o",
-			"StrictHostKeyChecking=no",
-			util.DegitalOcean.SSHUser()+"@"+ip,
-			"docker", "swarm", "init",
-		)
-		bout, err := sshCmd.CombinedOutput()
+		sshcli, err := ssh.NewNativeClient(
+			util.DegitalOcean.SSHUser(), ip, util.DegitalOcean.SSHPort(),
+			&ssh.Auth{Keys: util.DefaultSSHPrivateKeys()})
+
 		if err != nil {
 			fmt.Println(err.Error())
 		}
-		fmt.Print(string(bout))
+
+		sout, err := sshcli.Output("docker swarm init --secret " + secret + " --auto-accept manager")
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+		fmt.Print(sout)
 
 		util.SetActive(node)
 	},
@@ -73,6 +99,7 @@ func init() {
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	// initCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	initCmd.Flags().BoolP("enable-remote", "m", false, "allow remote connection to Engine")
+	initCmd.Flags().StringP("secret", "s", "", "secret for cluster")
 
 }

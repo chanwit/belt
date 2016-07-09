@@ -16,18 +16,18 @@ package cmd
 
 import (
 	"fmt"
-
 	"os"
-	"os/exec"
+	"text/tabwriter"
 
+	"github.com/apcera/libretto/virtualmachine/digitalocean"
 	"github.com/chanwit/belt/util"
 	"github.com/spf13/cobra"
 )
 
-// lsCmd represents the ls command
+// llsCmd represents the lls command
 var lsCmd = &cobra.Command{
 	Use:   "ls",
-	Short: "A brief description of your command",
+	Short: "list machines",
 	Long: `A longer description that spans multiple lines and likely contains examples
 and usage of using your command. For example:
 
@@ -35,23 +35,25 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		doArgs := []string{
-			"-t",
-			util.DegitalOcean.AccessToken(),
-			"compute",
-			"droplet",
-			"ls",
-		}
-		cmdExec := exec.Command("doctl", doArgs...)
-		cmdExec.Stdin = os.Stdin
-		cmdExec.Stdout = os.Stdout
-		cmdExec.Stderr = os.Stderr
-		err := cmdExec.Run()
+		token := util.DegitalOcean.AccessToken()
+		resp, err := digitalocean.GetDroplets(token)
 		if err != nil {
-			fmt.Print(err.Error())
+			fmt.Println(err.Error())
 			return
 		}
 
+		w := tabwriter.NewWriter(os.Stdout, 4, 4, 2, ' ', 0)
+		fmt.Fprintf(w, "NAME\tIPv4\tMEMORY\tREGION\tIMAGE\tSTATUS\n")
+		for _, d := range resp.Droplets {
+			fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%s\t%s\n",
+				d.Name,
+				GetPublicIP(d.Networks),
+				d.Size.Memory,
+				d.Region.Slug,
+				d.Image.Distribution+" "+d.Image.Name,
+				d.Status)
+		}
+		w.Flush()
 	},
 }
 
@@ -62,10 +64,10 @@ func init() {
 
 	// Cobra supports Persistent Flags which will work for this command
 	// and all subcommands, e.g.:
-	// lsCmd.PersistentFlags().String("foo", "", "A help for foo")
+	// llsCmd.PersistentFlags().String("foo", "", "A help for foo")
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	// lsCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// llsCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 
 }

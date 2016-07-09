@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/chanwit/belt/util"
 	"github.com/spf13/cobra"
@@ -59,7 +60,11 @@ to quickly create a Cobra application.`,
 		}
 
 		ips := CacheIP()
-		nodes := util.Generate(node)
+
+		nodes := []string{}
+		for _, n := range strings.Split(node, ",") {
+			nodes = append(nodes, util.Generate(n)...)
+		}
 
 		for _, n := range nodes {
 			ip := ips[n]
