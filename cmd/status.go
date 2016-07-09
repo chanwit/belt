@@ -16,8 +16,10 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
+	"text/tabwriter"
 	"time"
 
 	"github.com/apcera/libretto/virtualmachine/digitalocean"
@@ -96,7 +98,8 @@ to quickly create a Cobra application.`,
 			if loop {
 				fmt.Println()
 			}
-			fmt.Printf("%s\t\t%s\t%s\n", "STATUS", "#NODES", "NAMES")
+			w := tabwriter.NewWriter(os.Stdout, 4, 4, 2, ' ', 0)
+			fmt.Fprintf(w, "STATUS\t#NODES\tNAMES\n")
 
 			MAX_NAMES_LEN := 56
 			for k, v := range grpStatus {
@@ -111,7 +114,8 @@ to quickly create a Cobra application.`,
 							break
 						}
 					}
-					fmt.Printf("%s\t\t%5d\t%s\n", k, len(v), names)
+					fmt.Fprintf(w, "%s\t%5d\t%s\n", k, len(v), names)
+					w.Flush()
 				}
 
 				if k == what && len(v) == num {
