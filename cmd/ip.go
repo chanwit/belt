@@ -32,37 +32,6 @@ func GetPublicIP(ips *digitalocean.Networks) string {
 	return ""
 }
 
-/*
-func CacheIPAndRegion() map[string][2]string {
-	doArgs := []string{
-		"-t",
-		util.DegitalOcean.AccessToken(),
-		"compute",
-		"droplet",
-		"ls",
-		"--format",
-		"Name,PublicIPv4,Region",
-		"--no-header",
-	}
-
-	cmdExec := exec.Command("doctl", doArgs...)
-	bout, err := cmdExec.Output()
-	if err != nil {
-		fmt.Println(err.Error())
-		return nil
-	}
-	lines := strings.Split(strings.TrimSpace(string(bout)), "\n")
-	result := make(map[string]string)
-	for _, line := range lines {
-		f := strings.Fields(line)
-		// name -> ip, region
-		// region -> names
-		result[f[0]] = [2]string{f[1],f[2]}
-	}
-	return result
-}
-*/
-
 func CacheIP() map[string]string {
 	token := util.DegitalOcean.AccessToken()
 	resp, err := digitalocean.GetDroplets(token)

@@ -15,13 +15,12 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
-	"os/exec"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/apcera/libretto/virtualmachine/digitalocean"
 	"github.com/chanwit/belt/util"
 	"github.com/spf13/cobra"
 )
@@ -70,28 +69,20 @@ to quickly create a Cobra application.`,
 			}
 		}
 
-		doArgs := []string{
-			"-t",
-			util.DegitalOcean.AccessToken(),
-			"-o",
-			"json",
-			"compute",
-			"droplet",
-			"ls",
-		}
-
 		done := false
 		loop := false
 
+		token := util.DegitalOcean.AccessToken()
 		for {
-
-			cmdExec := exec.Command("doctl", doArgs...)
-			bout, err := cmdExec.Output()
-			nodes := []status{}
-			err = json.Unmarshal(bout, &nodes)
+			resp, err := digitalocean.GetDroplets(token)
 			if err != nil {
 				fmt.Println(err.Error())
 				return
+			}
+
+			nodes := []status{}
+			for _, droplet := range resp.Droplets {
+				nodes = append(nodes, status{droplet.Name, droplet.Status})
 			}
 
 			// group by status
