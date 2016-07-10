@@ -17,6 +17,8 @@ package cmd
 import (
 	"bytes"
 	"fmt"
+	"os/exec"
+	"runtime"
 	"strings"
 	"sync"
 	"text/template"
@@ -54,7 +56,7 @@ var configTmpl = `
   password = "{{.pass}}"
 
 [[inputs.cpu]]
-  percpu = true
+  percpu = false
   totalcpu = true
   fielddrop = ["time_*"]
 
@@ -82,10 +84,15 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		dbhost := cmd.Flag("dbhost").Value.String()
+		dbhost := cmd.Flag("dashboard").Value.String()
 		if dbhost == "" {
-			fmt.Println("dbhost is required")
+			fmt.Println("dashboard host is required")
 			return
+		}
+
+		fmt.Println("Checking current dashboard ...")
+		if CheckDashboard(dbhost) == false {
+			InstallDashboard(dbhost)
 		}
 
 		ips := CacheIP()
@@ -111,6 +118,8 @@ to quickly create a Cobra application.`,
 			fmt.Println(err.Error())
 			return
 		}
+
+		fmt.Println("\nInstalling monitoring agents ...")
 
 		var wg sync.WaitGroup
 		for _, n := range nodes {
@@ -147,26 +156,32 @@ to quickly create a Cobra application.`,
 
 				// setup agent
 				if !telegraf {
-					fmt.Println(node + ": installing agent ...")
+					// fmt.Print(".")ln(node + ": installing agent ...")
 					sshcli.Output("wget -O /tmp/telegraf.deb https://dl.influxdata.com/telegraf/releases/telegraf_1.0.0-beta2_amd64.deb")
 					// TODO
 					sshcli.Output("dpkg -i /tmp/telegraf.deb")
-					sshcli.Output(fmt.Sprintf("echo '%s' | tee /etc/telegraf/telegraf.conf", sbuffer.String()))
-
-					// post check
-					for {
-						_, err := sshcli.Output("service telegraf status")
-						if err != nil {
-							sshcli.Output("service telegraf start")
-						} else {
-							fmt.Println(node + ": done")
-							break
-						}
-						time.Sleep(500 * time.Millisecond)
-					}
-				} else {
-					fmt.Println(node + ": telegraf already installed")
 				}
+
+				sshcli.Output("service telegraf stop")
+
+				// update configuration
+				sshcli.Output(fmt.Sprintf("echo '%s' | tee /etc/telegraf/telegraf.conf", sbuffer.String()))
+
+				// post check
+				for {
+					_, err := sshcli.Output("service telegraf status")
+					if err != nil {
+						sshcli.Output("service telegraf start")
+					} else {
+						fmt.Println(node)
+						break
+					}
+					time.Sleep(500 * time.Millisecond)
+				}
+
+				// else {
+				//	fmt.Println(node + ": telegraf already installed")
+				// }
 			}(n)
 		}
 		wg.Wait()
@@ -185,7 +200,28 @@ to quickly create a Cobra application.`,
 		// 5. upload config to node /etc/...
 		// 6. dpkg -i telegraf
 		// post-check
+
+		url := "http://" + GetIP(dbhost) + "/dashboard/db/belt"
+		fmt.Println("Dashboard is now running at:" + url)
+		openbrowser(url)
 	},
+}
+
+func openbrowser(url string) error {
+	var err error
+
+	switch runtime.GOOS {
+	case "linux":
+		err = exec.Command("xdg-open", url).Start()
+	case "windows":
+		err = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+	case "darwin":
+		err = exec.Command("open", url).Start()
+	default:
+		err = fmt.Errorf("unsupported platform")
+	}
+
+	return err
 }
 
 func init() {
@@ -199,6 +235,6 @@ func init() {
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	monitorCmd.Flags().String("dbhost", "", "hostname for monitoring database (InfluxDB)")
+	monitorCmd.Flags().String("dashboard", "", "hostname for monitoring dashboard")
 	// TODO dbuser, dbpass
 }
