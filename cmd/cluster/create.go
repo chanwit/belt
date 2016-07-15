@@ -12,19 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cmd
+package cluster
 
 import (
-	"fmt"
+	"os"
+	"strings"
+	"io/ioutil"
 
-	"github.com/chanwit/belt/util"
+	"gopkg.in/yaml.v2"
 	"github.com/spf13/cobra"
+	cmdpkg "github.com/chanwit/belt/cmd"
 )
 
-// activeCmd represents the active command
-var activeCmd = &cobra.Command{
-	Use:   "active",
-	Short: "set or show active node",
+// newCmd represents the new command
+var newCmd = &cobra.Command{
+	Use:   "new",
+	Short: "create a new cluster",
 	Long: `A longer description that spans multiple lines and likely contains examples
 and usage of using your command. For example:
 
@@ -32,69 +35,53 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// $ belt cluster new --name=cluster \
+		//   --driver digitalocean \
+		//     --define region=x \
+		//     --define image=y \
+		//     --define access-token=abc
+		os.MkdirAll(".belt/" + args[0], 0755)
 
-		isCluster, err := cmd.Flags().GetBool("cluster")
+		def := make(map[string]string)
+		defines, err := cmd.Flags().GetStringSlice("define")
 		if err != nil {
 			return err
 		}
 
-		if isCluster {
-
-			if len(args) == 0 {
-				// GET
-				node, err := util.GetActiveCluster()
-				if err != nil {
-					return err
-				}
-				fmt.Println(node)
-			} else if len(args) > 0 {
-				// SET
-				node := args[0]
-
-				err := util.SetActiveCluster(node)
-				if err != nil {
-					return err
-				}
-				fmt.Println(node)
-			}
-
-		} else {
-
-			if len(args) == 0 {
-				// GET
-				node, err := util.GetActive()
-				if err != nil {
-					return err
-				}
-				fmt.Println(node)
-			} else if len(args) > 0 {
-				// SET
-				node := args[0]
-
-				err := util.SetActive(node)
-				if err != nil {
-					return err
-				}
-				fmt.Println(node)
-			}
-
+		for _, d := range defines {
+			parts := strings.SplitN(d, "=", 2)
+			def[parts[0]] = parts[1]
 		}
 
-		return nil
+		driver, err := cmd.Flags().GetString("driver")
+		if err != nil {
+			return err
+		}
+
+		data := make(map[string]interface{})
+		data[driver] = def
+		out, err := yaml.Marshal(data)
+		if err != nil {
+			return err
+		}
+
+		// TODO if file exists
+		return ioutil.WriteFile(".belt/" + args[0] + "/config.yaml", out, 0644)
 	},
 }
 
 func init() {
-	RootCmd.AddCommand(activeCmd)
+	cmdpkg.ClusterCmd.AddCommand(newCmd)
 
 	// Here you will define your flags and configuration settings.
 
 	// Cobra supports Persistent Flags which will work for this command
 	// and all subcommands, e.g.:
-	// activeCmd.PersistentFlags().String("foo", "", "A help for foo")
+	// newCmd.PersistentFlags().String("foo", "", "A help for foo")
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	activeCmd.Flags().BoolP("cluster", "c", false, "set or get active cluster")
-
+	newCmd.Flags().String("name", "", "name of a new cluster")
+	newCmd.Flags().String("driver", "none", "driver name")
+	newCmd.Flags().StringSlice("define", []string{}, "cluster definition")
 }

@@ -94,33 +94,68 @@ func Generate(pattern string) []string {
 
 const ACTIVE_HOST_FILE = ".active_node"
 
-func GetActive() (string, error) {
+
+func get(key string) (string, error) {
 	envs := make(map[string]string)
 	bytes, err := ioutil.ReadFile(ACTIVE_HOST_FILE)
 	if err != nil {
-		return "", errors.New("There is no active node.")
+		return "", err
 	}
 
 	err = yaml.Unmarshal(bytes, &envs)
 	if err == nil {
-		return envs["name"], nil
+		return envs[key], nil
 	}
 
 	return "", err
 }
 
-func SetActive(node string) error {
-	f, err := os.Create(ACTIVE_HOST_FILE)
-	defer f.Close()
+func set(key string, value string) error {
+	envs := make(map[string]string)
+	bytes, err := ioutil.ReadFile(ACTIVE_HOST_FILE)
 	if err != nil {
 		return err
 	}
 
-	// save active config
-	fmt.Fprintf(f, "---\n")
-	fmt.Fprintf(f, "name: %s\n", node)
+	err = yaml.Unmarshal(bytes, &envs)
+	if err != nil {
+		return err
+	}
 
-	return nil
+	envs[key] = value
+
+	data, err := yaml.Marshal(envs)
+	if err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile(ACTIVE_HOST_FILE, data, 0644)
+}
+
+func GetActiveCluster() (string, error) {
+	node, err := get("cluster")
+	if err != nil || strings.TrimSpace(node) == "" {
+		return "", errors.New("There is no active cluster.")
+	}
+
+	return node, nil
+}
+
+func GetActive() (string, error) {
+	node, err := get("host")
+	if err != nil || strings.TrimSpace(node) == "" {
+		return "", errors.New("There is no active node.")
+	}
+
+	return node, nil
+}
+
+func SetActive(node string) error {
+	return set("host", node)
+}
+
+func SetActiveCluster(cluster string) error {
+	return set("cluster", cluster)
 }
 
 func GetHomeDir() string {

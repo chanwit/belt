@@ -12,16 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cmd
+package cluster
 
 import (
 	// "fmt"
 
 	"github.com/spf13/cobra"
+	cmdpkg "github.com/chanwit/belt/cmd"
 )
 
 // clsCmd represents the cls command
-var clsCmd = &cobra.Command{
+var lsCmd = &cobra.Command{
 	Use:   "ls",
 	Short: "list clusters",
 	Long: `A longer description that spans multiple lines and likely contains examples
@@ -33,9 +34,15 @@ to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// convention over configuration
 		// like this
-		// .belt/cluster1/.belt.yml
-		// .belt/cluster2/.belt.yml
+		// .belt/cluster1/config.yml
+		// .belt/cluster2/config.yml
 		// so what's about active?
+		/*
+			$ belt cluster ls
+			CLUSTER   LEADER  MASTERS            #NODES
+			cluster1  node1   node1,node2,node3   30
+			cluster2  node2   node1,node2,node3   20
+		*/
 
 		// $ belt use cluster1
 		// $ belt active cluster1
@@ -43,7 +50,7 @@ to quickly create a Cobra application.`,
 }
 
 func init() {
-	clusterCmd.AddCommand(clsCmd)
+	cmdpkg.ClusterCmd.AddCommand(lsCmd)
 
 	// Here you will define your flags and configuration settings.
 

@@ -15,6 +15,7 @@
 package main
 
 import "github.com/chanwit/belt/cmd"
+import _ "github.com/chanwit/belt/cmd/cluster"
 
 func main() {
 	cmd.Execute()
