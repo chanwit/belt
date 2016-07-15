@@ -70,6 +70,7 @@ var configTmpl = `
 [[inputs.docker]]
   endpoint = "unix:///var/run/docker.sock"
   timeout = "5s"
+
 `
 
 // monitorCmd represents the monitor command
@@ -163,6 +164,7 @@ to quickly create a Cobra application.`,
 				}
 
 				sshcli.Output("service telegraf stop")
+				sshcli.Output("usermod -aG docker telegraf")
 
 				// update configuration
 				sshcli.Output(fmt.Sprintf("echo '%s' | tee /etc/telegraf/telegraf.conf", sbuffer.String()))
@@ -178,10 +180,6 @@ to quickly create a Cobra application.`,
 					}
 					time.Sleep(500 * time.Millisecond)
 				}
-
-				// else {
-				//	fmt.Println(node + ": telegraf already installed")
-				// }
 			}(n)
 		}
 		wg.Wait()
@@ -202,7 +200,7 @@ to quickly create a Cobra application.`,
 		// post-check
 
 		url := "http://" + GetIP(dbhost) + "/dashboard/db/belt"
-		fmt.Println("Dashboard is now running at:" + url)
+		fmt.Println("Dashboard is now running at " + url)
 		openbrowser(url)
 	},
 }

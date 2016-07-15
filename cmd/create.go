@@ -33,8 +33,23 @@ and usage of using your command. For example:
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
+	Example: `
+  To create 10 nodes 512mb each type,
+  $ belt create 512mb node[1:10]
+	`,
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) == 0 {
+			return fmt.Errorf("please specify parameters")
+		}
+		return nil
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		size := args[0]
+
+		image := cmd.Flag("image").Value.String()
+		if image == "" {
+			image = util.DegitalOcean.Image()
+		}
 
 		for i := 1; i < len(args); i++ {
 
@@ -66,7 +81,7 @@ to quickly create a Cobra application.`,
 				"--ssh-keys",
 				util.DegitalOcean.SSHKey(),
 				"--image",
-				util.DegitalOcean.Image(),
+				image,
 				"--size",
 				size,
 			}
@@ -104,5 +119,6 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	createCmd.Flags().String("region", "", "override region setting")
+	createCmd.Flags().String("image", "", "override image setting")
 
 }

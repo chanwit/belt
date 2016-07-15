@@ -77,8 +77,8 @@ to quickly create a Cobra application.`,
 		if err != nil {
 			fmt.Println(err.Error())
 		}
-
-		sout, err := sshcli.Output("docker swarm init --secret " + secret + " --auto-accept manager")
+		// use accept none
+		sout, err := sshcli.Output("docker swarm init --secret " + secret + " --auto-accept none")
 		if err != nil {
 			fmt.Println(err.Error())
 		}

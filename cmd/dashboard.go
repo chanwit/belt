@@ -86,7 +86,7 @@ func InstallDashboard(node string) error {
 		"tutum/influxdb", // TODO fix version
 	}
 
-	influxsrv, err := sshcli.Output(strings.Join(influxRun, " "))
+	_, err = sshcli.Output(strings.Join(influxRun, " "))
 	if err != nil {
 		return err
 	}
@@ -105,22 +105,15 @@ func InstallDashboard(node string) error {
 		"--name", "grafana",
 		"grafana/grafana", // TODO fix version
 	}
-	grafana, err := sshcli.Output(strings.Join(grafanaRun, " "))
-	fmt.Println("Starting dashboard user interface ...")
 
-	// check log
-	influxCheck := []string{
-		"docker", "ps", "--format", "{{.Status}}", "--filter", "id=" + influxsrv,
-	}
-	grafanaCheck := []string{
-		"docker", "ps", "--format", "{{.Status}}", "--filter", "id=" + grafana,
-	}
+	_, err = sshcli.Output(strings.Join(grafanaRun, " "))
+	fmt.Println("Starting dashboard user interface ...")
 
 	fmt.Print("Waiting for dashboard service to be ready ...")
 	for {
-		result, _ := sshcli.Output(strings.Join(influxCheck, " "))
-		result2, _ := sshcli.Output(strings.Join(grafanaCheck, " "))
-		if result[0:2] == "Up" && result2[0:2] == "Up" {
+		result, _ := sshcli.Output("docker inspect -f={{.State.Status}} influxsrv")
+		result2, _ := sshcli.Output("docker inspect -f={{.State.Status}} grafana")
+		if strings.TrimSpace(result) == "running" && strings.TrimSpace(result2) == "running" {
 			break
 		}
 		fmt.Print(".")
@@ -137,7 +130,12 @@ func InstallDashboard(node string) error {
 		fmt.Println("Datasource defined ...")
 	}
 
-	err = DefineDashboard(ip, []byte(dashboardJSON))
+	board, err := fixDashboardJson()
+	if err != nil {
+		return err
+	}
+
+	err = DefineDashboard(ip, board)
 	if err == nil {
 		fmt.Println("Dashboard defined ...")
 	}
@@ -164,7 +162,7 @@ to quickly create a Cobra application.`,
 			return
 		}
 
-		fmt.Println("Dashboard is now running at: http://" + GetIP(node) + "/dashboard/db/belt")
+		fmt.Println("Dashboard is now running at http://" + GetIP(node) + "/dashboard/db/belt")
 	},
 }
 
