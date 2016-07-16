@@ -24,6 +24,57 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var clients map[string]ssh.Client
+
+func init() {
+	clients = make(map[string]ssh.Client)
+}
+
+func GetSSHClient(ip string) (ssh.Client, error) {
+	cli, exist := clients[ip]
+	if exist {
+		return cli, nil
+	}
+	sshcli, err := ssh.NewNativeClient(
+		util.DegitalOcean.SSHUser(), ip, util.DegitalOcean.SSHPort(),
+		&ssh.Auth{Keys: util.DefaultSSHPrivateKeys()})
+
+	if err != nil {
+		return nil, err
+	}
+
+	clients[ip] = sshcli
+	return sshcli, nil
+}
+
+func SwarmInit(ip string, secret string) (string, error) {
+	sshcli, err := GetSSHClient(ip)
+	if err != nil {
+		return "", err
+	}
+
+	// use accept none
+	sout, err := sshcli.Output("docker swarm init --secret " + secret + " --auto-accept none")
+	if err != nil {
+		fmt.Print(sout)
+	}
+	return sout, err
+}
+
+func SwarmNodeList(ip string) ([]byte, error) {
+	sshcli, err := GetSSHClient(ip)
+	if err != nil {
+		return nil, err
+	}
+
+	// use accept none
+	sout, err := sshcli.Output("curl -s --unix-socket /var/run/docker.sock http:/v1.24/nodes")
+	if err != nil {
+		fmt.Print(sout)
+	}
+	return []byte(sout), err
+}
+
 // initCmd represents the init command
 var initCmd = &cobra.Command{
 	Use:   "init",
@@ -64,28 +115,11 @@ to quickly create a Cobra application.`,
 			}
 		}
 
-		_ /*pwd*/, err := os.Getwd()
+		sout, err := SwarmInit(ip, secret)
 		if err != nil {
-			fmt.Println(err.Error())
-			return
+			fmt.Print(sout)
 		}
 
-		sshcli, err := ssh.NewNativeClient(
-			util.DegitalOcean.SSHUser(), ip, util.DegitalOcean.SSHPort(),
-			&ssh.Auth{Keys: util.DefaultSSHPrivateKeys()})
-
-		if err != nil {
-			fmt.Println(err.Error())
-		}
-		// use accept none
-		sout, err := sshcli.Output("docker swarm init --secret " + secret + " --auto-accept none")
-		if err != nil {
-			fmt.Println(err.Error())
-		}
-		fmt.Print(sout)
-
-		// cluster, err := util.GetActiveCluster()
-		// util.SetMasters(cluster, node)
 		util.SetActive(node)
 	},
 }

@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/apcera/libretto/virtualmachine/digitalocean"
+	"github.com/chanwit/belt/drivers"
 	"github.com/chanwit/belt/util"
 	"github.com/spf13/cobra"
 )
@@ -34,7 +35,7 @@ func GetPublicIP(ips *digitalocean.Networks) string {
 
 func CacheIP() map[string]string {
 	token := util.DegitalOcean.AccessToken()
-	resp, err := digitalocean.GetDroplets(token)
+	resp, err := drivers.GetAllDroplets(token)
 	if err != nil {
 		return nil
 	}
@@ -48,7 +49,7 @@ func CacheIP() map[string]string {
 
 func GetIP(node string) string {
 	token := util.DegitalOcean.AccessToken()
-	resp, err := digitalocean.GetDroplets(token)
+	resp, err := drivers.GetAllDroplets(token)
 	if err != nil {
 		return ""
 	}

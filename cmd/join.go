@@ -25,6 +25,24 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func SwarmUpdate(ip string, policy string) (string, error) {
+	sshcli, err := GetSSHClient(ip)
+	if err != nil {
+		return "", err
+	}
+
+	return sshcli.Output("docker swarm update --auto-accept " + policy)
+}
+
+func SwarmJoinAsMaster(ip string, prime string, secret string) (string, error) {
+	sshcli, err := GetSSHClient(ip)
+	if err != nil {
+		return "", err
+	}
+
+	return sshcli.Output(fmt.Sprintf("docker swarm join --manager %s:2377 --secret %s", prime, secret))
+}
+
 // joinCmd represents the join command
 var joinCmd = &cobra.Command{
 	Use:   "join",

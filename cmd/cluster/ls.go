@@ -15,14 +15,17 @@
 package cluster
 
 import (
+	"encoding/json"
 	"fmt"
-	"os"
-	"text/tabwriter"
 	"io/ioutil"
+	"os"
+	"strings"
+	"text/tabwriter"
 
-	"github.com/spf13/cobra"
 	cmdpkg "github.com/chanwit/belt/cmd"
 	"github.com/chanwit/belt/util"
+	"github.com/elgs/gojq"
+	"github.com/spf13/cobra"
 )
 
 // clsCmd represents the cls command
@@ -37,20 +40,69 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		w := tabwriter.NewWriter(os.Stdout, 4, 4, 4, ' ', 0)
-		fmt.Fprintf(w, "CLUSTER\tLEADER\tMASTERS\t#NODES\n")
+		fmt.Fprintf(w, "CLUSTER\tACTIVE\tLEADER\tMASTERS\t#NODES\n")
 		infos, err := ioutil.ReadDir(".belt")
 		if err != nil {
 			return err
 		}
+
+		ips := cmdpkg.CacheIP()
 		activeCluster, _ := util.GetActiveCluster()
 		for _, info := range infos {
 			if info.IsDir() {
 				if _, err := os.Stat(".belt/" + info.Name() + "/config.yaml"); err == nil {
-					if activeCluster == info.Name() {
-						fmt.Fprintf(w, "%s *\n", info.Name())
-					} else {
-						fmt.Fprintf(w, "%s\n", info.Name())
+					cluster := info.Name()
+					host, err := util.GetActiveByCluster(cluster)
+					if err != nil {
+						return err
 					}
+
+					if ips[host] == "" {
+						return fmt.Errorf("active host not found")
+					}
+
+					data, err := cmdpkg.SwarmNodeList(ips[host])
+					// fmt.Println(string(data))
+					nodes := []interface{}{}
+					err = json.Unmarshal(data, &nodes)
+					if err != nil {
+						return err
+					}
+
+					managers := []string{}
+					leader := ""
+					for _, node := range nodes {
+						p := gojq.NewQuery(node)
+						hostname, err := p.QueryToString("Description.Hostname")
+						if err != nil {
+							panic(err)
+						}
+
+						role, err := p.QueryToString("Spec.Role")
+						if err != nil {
+							panic(err)
+						}
+
+						if role == "manager" {
+							isLeader, err := p.QueryToBool("ManagerStatus.Leader")
+							if err != nil {
+								isLeader = false
+								// panic(err)
+							}
+
+							managers = append(managers, hostname)
+							if isLeader {
+								leader = hostname
+							}
+						}
+					}
+
+					clusterDisplay := cluster
+					if activeCluster == info.Name() {
+						clusterDisplay = clusterDisplay + " *"
+					}
+
+					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\n", cluster, host, leader, strings.Join(managers, ","), len(nodes))
 				}
 			}
 		}

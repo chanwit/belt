@@ -32,52 +32,25 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-
-		isCluster, err := cmd.Flags().GetBool("cluster")
-		if err != nil {
-			return err
-		}
-
-		if isCluster {
-
-			if len(args) == 0 {
-				// GET
-				node, err := util.GetActiveCluster()
-				if err != nil {
-					return err
-				}
-				fmt.Println(node)
-			} else if len(args) > 0 {
-				// SET
-				node := args[0]
-
-				err := util.SetActiveCluster(node)
-				if err != nil {
-					return err
-				}
-				fmt.Println(node)
+		if len(args) == 0 {
+			// GET
+			node, err := util.GetActive()
+			if err != nil {
+				fmt.Println(err.Error())
+				return nil
 			}
+			cluster, _ := util.GetActiveCluster()
+			fmt.Println(cluster + "/" + node)
+		} else if len(args) > 0 {
+			// SET
+			node := args[0]
 
-		} else {
-
-			if len(args) == 0 {
-				// GET
-				node, err := util.GetActive()
-				if err != nil {
-					return err
-				}
-				fmt.Println(node)
-			} else if len(args) > 0 {
-				// SET
-				node := args[0]
-
-				err := util.SetActive(node)
-				if err != nil {
-					return err
-				}
-				fmt.Println(node)
+			err := util.SetActive(node)
+			if err != nil {
+				fmt.Println(err.Error())
+				return nil
 			}
-
+			fmt.Println(node)
 		}
 
 		return nil
@@ -95,6 +68,6 @@ func init() {
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	activeCmd.Flags().BoolP("cluster", "c", false, "set or get active cluster")
+	// activeCmd.Flags().BoolP("cluster", "c", false, "set or get active cluster")
 
 }

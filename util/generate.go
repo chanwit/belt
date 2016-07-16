@@ -66,6 +66,7 @@ func (e Env) SSHKey() string {
 
 // Generate takes care of IP generation
 func Generate(pattern string) []string {
+	// fmt.Println("pattern = " + pattern)
 	re, _ := regexp.Compile(`\[(.+):(.+)\]`)
 	submatch := re.FindStringSubmatch(pattern)
 	if submatch == nil {
@@ -94,10 +95,9 @@ func Generate(pattern string) []string {
 
 const ACTIVE_HOST_FILE = ".belt/active"
 
-
-func get(key string) (string, error) {
+func get(file, key string) (string, error) {
 	envs := make(map[string]string)
-	bytes, err := ioutil.ReadFile(ACTIVE_HOST_FILE)
+	bytes, err := ioutil.ReadFile(file)
 	if err != nil {
 		return "", err
 	}
@@ -110,9 +110,9 @@ func get(key string) (string, error) {
 	return "", err
 }
 
-func set(key string, value string) error {
+func set(file string, key string, value string) error {
 	envs := make(map[string]string)
-	bytes, err := ioutil.ReadFile(ACTIVE_HOST_FILE)
+	bytes, err := ioutil.ReadFile(file)
 	if err == nil {
 		err = yaml.Unmarshal(bytes, &envs)
 		if err != nil {
@@ -127,11 +127,11 @@ func set(key string, value string) error {
 		return err
 	}
 
-	return ioutil.WriteFile(ACTIVE_HOST_FILE, data, 0644)
+	return ioutil.WriteFile(file, data, 0644)
 }
 
 func GetActiveCluster() (string, error) {
-	node, err := get("cluster")
+	node, err := get(ACTIVE_HOST_FILE, "cluster")
 	if err != nil || strings.TrimSpace(node) == "" {
 		return "", errors.New("There is no active cluster.")
 	}
@@ -140,20 +140,37 @@ func GetActiveCluster() (string, error) {
 }
 
 func GetActive() (string, error) {
-	node, err := get("host")
+	cluster, err := GetActiveCluster()
+	if err != nil {
+		return "", err
+	}
+	node, err := get(".belt/"+cluster+"/active", "host")
 	if err != nil || strings.TrimSpace(node) == "" {
-		return "", errors.New("There is no active node.")
+		return "", fmt.Errorf("%s: there is no active node.", cluster)
+	}
+
+	return node, nil
+}
+
+func GetActiveByCluster(cluster string) (string, error) {
+	node, err := get(".belt/"+cluster+"/active", "host")
+	if err != nil || strings.TrimSpace(node) == "" {
+		return "", fmt.Errorf("%s: there is no active node.", cluster)
 	}
 
 	return node, nil
 }
 
 func SetActive(node string) error {
-	return set("host", node)
+	cluster, err := GetActiveCluster()
+	if err != nil {
+		return err
+	}
+	return set(".belt/"+cluster+"/active", "host", node)
 }
 
 func SetActiveCluster(cluster string) error {
-	return set("cluster", cluster)
+	return set(ACTIVE_HOST_FILE, "cluster", cluster)
 }
 
 func GetHomeDir() string {
