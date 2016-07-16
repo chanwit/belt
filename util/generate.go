@@ -92,7 +92,7 @@ func Generate(pattern string) []string {
 	return result
 }
 
-const ACTIVE_HOST_FILE = ".active_node"
+const ACTIVE_HOST_FILE = ".belt/active"
 
 
 func get(key string) (string, error) {
@@ -113,13 +113,11 @@ func get(key string) (string, error) {
 func set(key string, value string) error {
 	envs := make(map[string]string)
 	bytes, err := ioutil.ReadFile(ACTIVE_HOST_FILE)
-	if err != nil {
-		return err
-	}
-
-	err = yaml.Unmarshal(bytes, &envs)
-	if err != nil {
-		return err
+	if err == nil {
+		err = yaml.Unmarshal(bytes, &envs)
+		if err != nil {
+			return err
+		}
 	}
 
 	envs[key] = value

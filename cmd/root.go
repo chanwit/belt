@@ -21,6 +21,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/chanwit/belt/util"
 )
 
 var cfgFile string
@@ -53,12 +54,12 @@ func init() {
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	// RootCmd.Flags().BoolP("toggle", "t", false, "help message for toggle")
-	RootCmd.PersistentFlags().String("driver", "none", "belt driver")
 
-	RootCmd.ParseFlags(os.Args)
-	driver := RootCmd.Flag("driver").Value.String()
-	if driver != "none" {
-		cfgFile = driver + ".yaml"
+	if cfgFile == "" {
+		cluster, err := util.GetActiveCluster()
+		if err == nil && cluster != "" {
+			cfgFile = ".belt/" + cluster + "/config.yaml"
+		}
 	}
 
 	cobra.OnInitialize(initConfig)

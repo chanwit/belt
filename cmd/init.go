@@ -84,6 +84,8 @@ to quickly create a Cobra application.`,
 		}
 		fmt.Print(sout)
 
+		// cluster, err := util.GetActiveCluster()
+		// util.SetMasters(cluster, node)
 		util.SetActive(node)
 	},
 }

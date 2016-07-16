@@ -15,10 +15,14 @@
 package cluster
 
 import (
-	// "fmt"
+	"fmt"
+	"os"
+	"text/tabwriter"
+	"io/ioutil"
 
 	"github.com/spf13/cobra"
 	cmdpkg "github.com/chanwit/belt/cmd"
+	"github.com/chanwit/belt/util"
 )
 
 // clsCmd represents the cls command
@@ -31,7 +35,29 @@ and usage of using your command. For example:
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
+		w := tabwriter.NewWriter(os.Stdout, 4, 4, 4, ' ', 0)
+		fmt.Fprintf(w, "CLUSTER\tLEADER\tMASTERS\t#NODES\n")
+		infos, err := ioutil.ReadDir(".belt")
+		if err != nil {
+			return err
+		}
+		activeCluster, _ := util.GetActiveCluster()
+		for _, info := range infos {
+			if info.IsDir() {
+				if _, err := os.Stat(".belt/" + info.Name() + "/config.yaml"); err == nil {
+					if activeCluster == info.Name() {
+						fmt.Fprintf(w, "%s *\n", info.Name())
+					} else {
+						fmt.Fprintf(w, "%s\n", info.Name())
+					}
+				}
+			}
+		}
+
+		w.Flush()
+
+		return nil
 		// convention over configuration
 		// like this
 		// .belt/cluster1/config.yml
