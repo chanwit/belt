@@ -15,19 +15,19 @@
 package cluster
 
 import (
+	"fmt"
 	"io/ioutil"
-	"os"
-	"strings"
 
 	cmdpkg "github.com/chanwit/belt/cmd"
+	"github.com/chanwit/belt/util"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 )
 
-// newCmd represents the new command
-var newCmd = &cobra.Command{
-	Use:   "new",
-	Short: "create a new cluster",
+// configCmd represents the config command
+var configCmd = &cobra.Command{
+	Use:   "config",
+	Short: "show the current configuration",
 	Long: `A longer description that spans multiple lines and likely contains examples
 and usage of using your command. For example:
 
@@ -35,53 +35,44 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// $ belt cluster new --name=cluster \
-		//   --driver digitalocean \
-		//     --define region=x \
-		//     --define image=y \
-		//     --define access-token=abc
-		os.MkdirAll(".belt/"+args[0], 0755)
-
-		def := make(map[string]string)
-		defines, err := cmd.Flags().GetStringSlice("define")
+		cluster, err := util.GetActiveCluster()
 		if err != nil {
 			return err
 		}
-
-		for _, d := range defines {
-			parts := strings.SplitN(d, "=", 2)
-			def[parts[0]] = parts[1]
-		}
-
-		driver, err := cmd.Flags().GetString("driver")
+		b, err := ioutil.ReadFile(".belt/" + cluster + "/config.yaml")
 		if err != nil {
 			return err
 		}
-
-		data := make(map[string]interface{})
-		data[driver] = def
-		out, err := yaml.Marshal(data)
-		if err != nil {
-			return err
+		showAsCmd, err := cmd.Flags().GetBool("cmd")
+		if showAsCmd == false {
+			fmt.Print(string(b))
+		} else {
+			data := make(map[string]map[string]string)
+			yaml.Unmarshal(b, &data)
+			for k, def := range data {
+				fmt.Printf("--driver %s ", k)
+				for kk, vv := range def {
+					fmt.Printf("--define %s=%s ", kk, vv)
+				}
+				// only once
+				break
+			}
 		}
-
-		// TODO if file exists
-		return ioutil.WriteFile(".belt/"+args[0]+"/config.yaml", out, 0644)
+		return nil
 	},
 }
 
 func init() {
-	cmdpkg.ClusterCmd.AddCommand(newCmd)
+	cmdpkg.ClusterCmd.AddCommand(configCmd)
 
 	// Here you will define your flags and configuration settings.
 
 	// Cobra supports Persistent Flags which will work for this command
 	// and all subcommands, e.g.:
-	// newCmd.PersistentFlags().String("foo", "", "A help for foo")
+	// configCmd.PersistentFlags().String("foo", "", "A help for foo")
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	// newCmd.Flags().String("name", "", "name of a new cluster")
-	newCmd.Flags().String("driver", "none", "driver name")
-	newCmd.Flags().StringSlice("define", []string{}, "cluster definition")
+	configCmd.Flags().BoolP("cmd", "c", false, "print as command line")
+
 }

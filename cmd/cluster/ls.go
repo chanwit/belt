@@ -52,17 +52,25 @@ to quickly create a Cobra application.`,
 			if info.IsDir() {
 				if _, err := os.Stat(".belt/" + info.Name() + "/config.yaml"); err == nil {
 					cluster := info.Name()
-					host, err := util.GetActiveByCluster(cluster)
-					if err != nil {
-						return err
+					clusterDisplay := cluster
+					if activeCluster == info.Name() {
+						clusterDisplay = clusterDisplay + " *"
 					}
 
+					host, err := util.GetActiveByCluster(cluster)
+					if err != nil {
+						fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d / %d\n", clusterDisplay, "-", "-", "-", 0, 0)
+						break
+					}
+
+					// no active host
 					if ips[host] == "" {
-						return fmt.Errorf("active host not found")
+						fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d / %d\n", clusterDisplay, "-", "-", "-", 0, 0)
+						break
 					}
 
 					data, err := cmdpkg.SwarmNodeList(ips[host])
-					// fmt.Println(string(data))
+					// DEBUG: fmt.Println(string(data))
 					nodes := []interface{}{}
 					err = json.Unmarshal(data, &nodes)
 					if err != nil {
@@ -71,6 +79,7 @@ to quickly create a Cobra application.`,
 
 					managers := []string{}
 					leader := ""
+					ready := 0
 					for _, node := range nodes {
 						p := gojq.NewQuery(node)
 						hostname, err := p.QueryToString("Description.Hostname")
@@ -95,14 +104,14 @@ to quickly create a Cobra application.`,
 								leader = hostname
 							}
 						}
+
+						status, err := p.QueryToString("Status.State")
+						if status == "ready" {
+							ready++
+						}
 					}
 
-					clusterDisplay := cluster
-					if activeCluster == info.Name() {
-						clusterDisplay = clusterDisplay + " *"
-					}
-
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\n", cluster, host, leader, strings.Join(managers, ","), len(nodes))
+					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d / %d\n", clusterDisplay, host, leader, strings.Join(managers, ","), ready, len(nodes))
 				}
 			}
 		}

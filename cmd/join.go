@@ -43,6 +43,15 @@ func SwarmJoinAsMaster(ip string, prime string, secret string) (string, error) {
 	return sshcli.Output(fmt.Sprintf("docker swarm join --manager %s:2377 --secret %s", prime, secret))
 }
 
+func SwarmJoinAsWorker(ip string, prime string, secret string) (string, error) {
+	sshcli, err := GetSSHClient(ip)
+	if err != nil {
+		return "", err
+	}
+
+	return sshcli.Output(fmt.Sprintf("docker swarm join %s:2377 --secret %s", prime, secret))
+}
+
 // joinCmd represents the join command
 var joinCmd = &cobra.Command{
 	Use:   "join",

@@ -48,9 +48,9 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		masters, err := stringSliceConv(cmd.Flag("master").Value.String())
+		masters, err := stringSliceConv(cmd.Flag("manager").Value.String())
 
-		masterSize, err := cmd.Flags().GetString("master-size")
+		masterSize, err := cmd.Flags().GetString("manager-size")
 		workerSize, err := cmd.Flags().GetString("worker-size")
 
 		if masterSize == "" {
@@ -94,7 +94,26 @@ to quickly create a Cobra application.`,
 			return err
 		}
 
-		// print out
+		// 4. create worker
+		workers := []string{}
+		for _, arg := range args {
+			workers = append(workers, util.Generate(arg)...)
+		}
+
+		workerConfig := drivers.Config{
+			Names:   workers,
+			Region:  util.DegitalOcean.Region(),
+			Image:   util.DegitalOcean.Image(),
+			Size:    workerSize,
+			SSHKeys: []string{util.DegitalOcean.SSHKey()},
+		}
+
+		workerDroplets, err := drivers.Provision(util.DegitalOcean.AccessToken(), workerConfig)
+		if err != nil {
+			return err
+		}
+
+		// print out masters first
 		cmdpkg.ListDroplets(masterDroplets.Droplets)
 
 		fmt.Print("\nwaiting for all masters to be active ...")
@@ -126,18 +145,26 @@ to quickly create a Cobra application.`,
 
 		fmt.Println()
 
+		// 3. init and join
+		// if len(master) == 1 // do init
+		// if len(master) >= 2 // do init, do join --manager
+
 		util.SetActive(genMasters[0])
 
 		fmt.Println("initialising a cluster ...")
 		// swarm init
 		ips := cmdpkg.CacheIP()
 		primeIP := ips[genMasters[0]]
-		_, err = cmdpkg.SwarmInit(primeIP, secret)
+		sout, err := cmdpkg.SwarmInit(primeIP, secret)
 		if err != nil {
 			return err
 		}
+		// check CA hash
+		fmt.Println(sout)
+
 		fmt.Println(genMasters[0] + ": init ...")
 
+		// todo handle error
 		cmdpkg.SwarmUpdate(primeIP, "manager")
 		defer func() {
 			_, err := cmdpkg.SwarmUpdate(primeIP, "none")
@@ -163,13 +190,58 @@ to quickly create a Cobra application.`,
 		}
 		wg.Wait()
 
-		// cmdpkg.ListDroplets(masterDroplets.Droplets)
+		// print out workers
+		cmdpkg.ListDroplets(workerDroplets.Droplets)
 
-		// 3. init and join
-		// if len(master) == 1 // do init
-		// if len(master) >= 2 // do init, do join --manager
+		// 5. wait for worker to be active
+		for {
+			res, _ := drivers.GetAllDroplets(util.DegitalOcean.AccessToken())
+			for _, d := range res.Droplets {
+				status[d.Name] = (d.Status == "active")
+			}
 
-		// 4. create worker
+			allActive := true
+			count := 0
+			for _, w := range workers {
+				if status[w] == false {
+					allActive = false
+				} else {
+					count++
+				}
+			}
+
+			if allActive {
+				break
+			} else {
+				fmt.Printf("\r%d / %d worker nodes become active ...", count, len(workers))
+				// should reduce from 10 -> 5 -> 3
+				// when most nodes done
+				time.Sleep(5 * time.Second)
+			}
+
+		}
+
+		fmt.Printf("\r%d / %d worker nodes become active ...\n", len(workers), len(workers))
+
+		// update policy to accept worker
+		// todo handle error
+		cmdpkg.SwarmUpdate(primeIP, "worker")
+		fmt.Println("acceptance policy updated to worker")
+
+		// 5. join as worker
+		for _, w := range workers {
+			wg.Add(1)
+			go func(w string) {
+				defer wg.Done()
+				ip := ips[w]
+				_, err := cmdpkg.SwarmJoinAsWorker(ip, primeIP, secret)
+				if err != nil {
+					panic(err)
+				}
+				fmt.Println(w + ": joined as worker")
+			}(w)
+		}
+		wg.Wait()
 
 		return nil
 	},
@@ -186,10 +258,10 @@ func init() {
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	provisionCmd.Flags().String("master-size", "", "master size")
+	provisionCmd.Flags().String("manager-size", "", "manager size")
 	provisionCmd.Flags().String("worker-size", "", "worker size")
 
-	provisionCmd.Flags().StringSlice("master", []string{}, "masters")
-	provisionCmd.Flags().StringSlice("worker", []string{}, "workers")
+	provisionCmd.Flags().StringSlice("manager", []string{}, "managers")
+	// provisionCmd.Flags().StringSlice("worker", []string{}, "workers")
 	provisionCmd.Flags().String("secret", "", "secret for forming cluster")
 }
