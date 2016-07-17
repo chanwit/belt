@@ -15,10 +15,13 @@
 package cluster
 
 import (
+	"fmt"
 	"io/ioutil"
 	"strings"
 
 	cmdpkg "github.com/chanwit/belt/cmd"
+	"github.com/chanwit/belt/util"
+	dmp "github.com/sergi/go-diff/diffmatchpatch"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 )
@@ -39,7 +42,16 @@ to quickly create a Cobra application.`,
 			return err
 		}
 
-		config, err := ioutil.ReadFile(".belt/" + args[0] + "/config.yaml")
+		cluster, err := util.GetActiveCluster()
+		if err != nil {
+			return err
+		}
+
+		if len(args) != 0 {
+			cluster = args[0]
+		}
+
+		config, err := ioutil.ReadFile(".belt/" + cluster + "/config.yaml")
 		if err != nil {
 			return err
 		}
@@ -48,6 +60,15 @@ to quickly create a Cobra application.`,
 		err = yaml.Unmarshal(config, &data)
 		if err != nil {
 			return err
+		}
+
+		// if driver not specified
+		if driver == "" {
+			// any first found
+			for k := range data {
+				driver = k
+				break
+			}
 		}
 
 		def := data[driver]
@@ -69,7 +90,27 @@ to quickly create a Cobra application.`,
 		}
 
 		// TODO if file exists
-		return ioutil.WriteFile(".belt/"+args[0]+"/config.yaml", out, 0644)
+		err = ioutil.WriteFile(".belt/"+cluster+"/config.yaml", out, 0644)
+		if err == nil {
+			diff := dmp.New()
+
+			diffs := diff.DiffMain(string(config), string(out), true)
+			diffs = diff.DiffCleanupSemantic(diffs)
+			diffs = diff.DiffCleanupEfficiency(diffs)
+
+			for _, d := range diffs {
+				switch d.Type {
+				case dmp.DiffInsert:
+					fmt.Print("+")
+					fmt.Println(d.Text)
+				case dmp.DiffDelete:
+					fmt.Print("-")
+					fmt.Println(d.Text)
+				}
+			}
+		}
+
+		return err
 	},
 }
 
@@ -77,7 +118,7 @@ func init() {
 	cmdpkg.ClusterCmd.AddCommand(updateCmd)
 
 	updateCmd.Flags().String("name", "", "name of a new cluster")
-	updateCmd.Flags().String("driver", "none", "driver name")
+	updateCmd.Flags().String("driver", "", "driver name")
 	updateCmd.Flags().StringSlice("define", []string{}, "cluster definition")
 
 	// Here you will define your flags and configuration settings.
