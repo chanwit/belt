@@ -36,11 +36,15 @@ func GetPublicIP(ips *digitalocean.Networks) string {
 func CacheIP() map[string]string {
 	token := util.DegitalOcean.AccessToken()
 	resp, err := drivers.GetAllDroplets(token)
+	result := make(map[string]string)
 	if err != nil {
-		return nil
+		return result
 	}
 
-	result := make(map[string]string)
+	if resp == nil {
+		return result
+	}
+
 	for _, d := range resp.Droplets {
 		result[d.Name] = GetPublicIP(d.Networks)
 	}

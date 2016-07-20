@@ -117,7 +117,6 @@ to quickly create a Cobra application.`,
 func init() {
 	cmdpkg.ClusterCmd.AddCommand(updateCmd)
 
-	updateCmd.Flags().String("name", "", "name of a new cluster")
 	updateCmd.Flags().String("driver", "", "driver name")
 	updateCmd.Flags().StringSlice("define", []string{}, "cluster definition")
 

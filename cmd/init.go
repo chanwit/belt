@@ -30,6 +30,10 @@ func init() {
 	clients = make(map[string]ssh.Client)
 }
 
+func ClearSSHClient(ip string) {
+	delete(clients, ip)
+}
+
 func GetSSHClient(ip string) (ssh.Client, error) {
 	cli, exist := clients[ip]
 	if exist {
@@ -47,6 +51,26 @@ func GetSSHClient(ip string) (ssh.Client, error) {
 	return sshcli, nil
 }
 
+// belt docker node update --availability drain mg0 mg1 mg2^C
+
+func DrainNodes(ip string, nodes []string) error {
+	sshcli, err := GetSSHClient(ip)
+	if err != nil {
+		return "", err
+	}
+
+	// docker node update --availability drain mg0 mg1 mg2
+	result := []string{}
+	for _, node := range nodes {
+		sout, err := sshcli.Output("docker node update --availability drain " + node)
+		if err != nil {
+			fmt.Print(sout)
+		}
+	}
+
+	return sout, err
+}
+
 func SwarmInit(ip string, secret string) (string, error) {
 	sshcli, err := GetSSHClient(ip)
 	if err != nil {
@@ -54,7 +78,7 @@ func SwarmInit(ip string, secret string) (string, error) {
 	}
 
 	// use accept none
-	sout, err := sshcli.Output("docker swarm init --secret " + secret + " --auto-accept none")
+	sout, err := sshcli.Output("docker swarm init --listen-addr " + ip + ":2377 --secret " + secret + " --auto-accept none")
 	if err != nil {
 		fmt.Print(sout)
 	}

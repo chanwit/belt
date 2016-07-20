@@ -60,13 +60,13 @@ to quickly create a Cobra application.`,
 					host, err := util.GetActiveByCluster(cluster)
 					if err != nil {
 						fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d / %d\n", clusterDisplay, "-", "-", "-", 0, 0)
-						break
+						continue
 					}
 
 					// no active host
 					if ips[host] == "" {
-						fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d / %d\n", clusterDisplay, "-", "-", "-", 0, 0)
-						break
+						fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d / %d\n", clusterDisplay, host, "-", "-", 0, 0)
+						continue
 					}
 
 					data, err := cmdpkg.SwarmNodeList(ips[host])

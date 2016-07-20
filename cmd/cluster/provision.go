@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/apcera/libretto/virtualmachine/digitalocean"
 	cmdpkg "github.com/chanwit/belt/cmd"
 	"github.com/chanwit/belt/drivers"
 	"github.com/chanwit/belt/util"
@@ -100,23 +101,42 @@ to quickly create a Cobra application.`,
 			workers = append(workers, util.Generate(arg)...)
 		}
 
-		workerConfig := drivers.Config{
-			Names:   workers,
-			Region:  util.DegitalOcean.Region(),
-			Image:   util.DegitalOcean.Image(),
-			Size:    workerSize,
-			SSHKeys: []string{util.DegitalOcean.SSHKey()},
+		MAX := 10
+
+		num := len(workers)
+		loop := num / MAX
+		rem := num % MAX
+		if rem != 0 {
+			loop++
 		}
 
-		workerDroplets, err := drivers.Provision(util.DegitalOcean.AccessToken(), workerConfig)
-		if err != nil {
-			return err
+		allworkerDroplets := []*digitalocean.Droplet{}
+		for i := 1; i <= loop; i++ {
+			offset := (i - 1) * MAX
+			data := []string{}
+			if i < loop {
+				data = workers[offset : offset+MAX]
+			} else {
+				data = workers[offset:]
+			}
+			workerConfig := drivers.Config{
+				Names:   data,
+				Region:  util.DegitalOcean.Region(),
+				Image:   util.DegitalOcean.Image(),
+				Size:    workerSize,
+				SSHKeys: []string{util.DegitalOcean.SSHKey()},
+			}
+			workerDroplets, err := drivers.Provision(util.DegitalOcean.AccessToken(), workerConfig)
+			if err != nil {
+				return err
+			}
+			allworkerDroplets = append(allworkerDroplets, workerDroplets.Droplets...)
 		}
 
 		// print out masters first
 		cmdpkg.ListDroplets(masterDroplets.Droplets)
 
-		fmt.Print("\nwaiting for all masters to be active ...")
+		fmt.Printf("\r%d / %d manager nodes become active ...", 0, len(genMasters))
 		// 2. wait for masters to be active
 		status := make(map[string]bool)
 		for {
@@ -127,22 +147,25 @@ to quickly create a Cobra application.`,
 			}
 
 			allActive := true
+			count := 0
 			for _, m := range genMasters {
 				if status[m] == false {
 					allActive = false
-					break
+				} else {
+					count++
 				}
 			}
 
 			if allActive {
 				break
 			} else {
-				fmt.Print(".")
+				fmt.Printf("\r%d / %d manager nodes become active ...", count, len(genMasters))
 				time.Sleep(3 * time.Second)
 			}
 
 		}
 
+		fmt.Printf("\r%d / %d manager nodes become active ...", len(genMasters), len(genMasters))
 		fmt.Println()
 
 		// 3. init and join
@@ -151,6 +174,7 @@ to quickly create a Cobra application.`,
 
 		util.SetActive(genMasters[0])
 
+		fmt.Println()
 		fmt.Println("initialising a cluster ...")
 		// swarm init
 		ips := cmdpkg.CacheIP()
@@ -162,7 +186,7 @@ to quickly create a Cobra application.`,
 		// check CA hash
 		fmt.Println(sout)
 
-		fmt.Println(genMasters[0] + ": init ...")
+		fmt.Println(genMasters[0] + ": initialized")
 
 		// todo handle error
 		cmdpkg.SwarmUpdate(primeIP, "manager")
@@ -173,7 +197,7 @@ to quickly create a Cobra application.`,
 			}
 		}()
 
-		fmt.Println(genMasters[0] + ": policy updated")
+		fmt.Println("acceptance policy updated to manager")
 
 		var wg sync.WaitGroup
 		for _, m := range genMasters[1:] {
@@ -190,58 +214,88 @@ to quickly create a Cobra application.`,
 		}
 		wg.Wait()
 
-		// print out workers
-		cmdpkg.ListDroplets(workerDroplets.Droplets)
+		if len(allworkerDroplets) > 0 {
 
-		// 5. wait for worker to be active
-		for {
-			res, _ := drivers.GetAllDroplets(util.DegitalOcean.AccessToken())
-			for _, d := range res.Droplets {
-				status[d.Name] = (d.Status == "active")
-			}
+			// print out workers
+			fmt.Println()
+			cmdpkg.ListDroplets(allworkerDroplets)
 
-			allActive := true
-			count := 0
-			for _, w := range workers {
-				if status[w] == false {
-					allActive = false
-				} else {
-					count++
+			// 5. wait for worker to be active
+			for {
+				res, _ := drivers.GetAllDroplets(util.DegitalOcean.AccessToken())
+				for _, d := range res.Droplets {
+					status[d.Name] = (d.Status == "active")
 				}
+
+				allActive := true
+				count := 0
+				for _, w := range workers {
+					if status[w] == false {
+						allActive = false
+					} else {
+						count++
+					}
+				}
+
+				if allActive {
+					break
+				} else {
+					fmt.Printf("\r%d / %d worker nodes become active ...", count, len(workers))
+					// should reduce from 10 -> 5 -> 3
+					// when most nodes done
+					time.Sleep(5 * time.Second)
+				}
+
 			}
 
-			if allActive {
-				break
-			} else {
-				fmt.Printf("\r%d / %d worker nodes become active ...", count, len(workers))
-				// should reduce from 10 -> 5 -> 3
-				// when most nodes done
-				time.Sleep(5 * time.Second)
+			fmt.Printf("\r%d / %d worker nodes become active ...\n", len(workers), len(workers))
+			fmt.Println()
+
+			// update policy to accept worker
+			// todo handle error
+			cmdpkg.SwarmUpdate(primeIP, "worker")
+			fmt.Println("acceptance policy updated to worker")
+
+			// 5. join as worker
+			for _, w := range workers {
+				wg.Add(1)
+				go func(w string) {
+					defer wg.Done()
+					ip := ips[w]
+					sout, err := cmdpkg.SwarmJoinAsWorker(ip, primeIP, secret)
+					if err != nil {
+						// try to be robust
+						fmt.Println(sout)
+						cmdpkg.ClearSSHClient(ip)
+						_, err := cmdpkg.SwarmJoinAsWorker(ip, primeIP, secret)
+						if err != nil {
+							fmt.Println(sout)
+							panic(err)
+						}
+					}
+					fmt.Println(w + ": joined as worker")
+				}(w)
 			}
+			wg.Wait()
 
 		}
 
-		fmt.Printf("\r%d / %d worker nodes become active ...\n", len(workers), len(workers))
-
-		// update policy to accept worker
-		// todo handle error
-		cmdpkg.SwarmUpdate(primeIP, "worker")
-		fmt.Println("acceptance policy updated to worker")
-
-		// 5. join as worker
-		for _, w := range workers {
+		fmt.Print("fixing hostname ")
+		for _, node := range append(genMasters, workers...) {
 			wg.Add(1)
-			go func(w string) {
+			go func(node string) {
 				defer wg.Done()
-				ip := ips[w]
-				_, err := cmdpkg.SwarmJoinAsWorker(ip, primeIP, secret)
-				if err != nil {
-					panic(err)
+				ip := ips[node]
+				sshcli, err := cmdpkg.GetSSHClient(ip)
+				if err == nil {
+					sshcli.Output("hostname " + node)
+					sshcli.Output("service docker restart")
 				}
-				fmt.Println(w + ": joined as worker")
-			}(w)
+				fmt.Print(".")
+			}(node)
 		}
 		wg.Wait()
+		fmt.Println()
 
 		return nil
 	},
