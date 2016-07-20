@@ -79,8 +79,6 @@ to quickly create a Cobra application.`,
 			genMasters = append(genMasters, util.Generate(m)...)
 		}
 
-		// fmt.Printf("%q\n",genMasters)
-
 		// 1. create masters
 		masterConfig := drivers.Config{
 			Names:   genMasters,
@@ -89,6 +87,7 @@ to quickly create a Cobra application.`,
 			Size:    masterSize,
 			SSHKeys: []string{util.DegitalOcean.SSHKey()},
 		}
+		fmt.Println(masterConfig.SSHKeys)
 
 		masterDroplets, err := drivers.Provision(util.DegitalOcean.AccessToken(), masterConfig)
 		if err != nil {

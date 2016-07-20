@@ -175,13 +175,18 @@ func SetActiveCluster(cluster string) error {
 
 func GetHomeDir() string {
 	if runtime.GOOS == "windows" {
-		if os.Getenv("CYGWIN") != "" {
+		if os.Getenv("CYGWIN") != ""  || os.Getenv("TERM") == "cygwin" {
 			bout, err := exec.Command("cygpath", "-w", os.Getenv("HOME")).Output()
 			if err != nil {
 				return ""
 			}
 			return strings.TrimSpace(string(bout))
 		}
+
+		if os.Getenv("HOME") != "" {
+			return os.Getenv("HOME")
+		}
+
 		return os.Getenv("USERPROFILE")
 	}
 	return os.Getenv("HOME")

@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/chanwit/belt/ssh"
 	"github.com/chanwit/belt/util"
@@ -53,7 +54,7 @@ func GetSSHClient(ip string) (ssh.Client, error) {
 
 // belt docker node update --availability drain mg0 mg1 mg2^C
 
-func DrainNodes(ip string, nodes []string) error {
+func DrainNodes(ip string, nodes []string) (string, error) {
 	sshcli, err := GetSSHClient(ip)
 	if err != nil {
 		return "", err
@@ -66,9 +67,10 @@ func DrainNodes(ip string, nodes []string) error {
 		if err != nil {
 			fmt.Print(sout)
 		}
+		result = append(result, strings.TrimSpace(sout))
 	}
 
-	return sout, err
+	return strings.Join(result, "\n"), err
 }
 
 func SwarmInit(ip string, secret string) (string, error) {

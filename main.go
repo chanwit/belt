@@ -16,7 +16,11 @@ package main
 
 import "github.com/chanwit/belt/cmd"
 import _ "github.com/chanwit/belt/cmd/cluster"
+import "fmt"
+import "os"
+import "strings"
 
 func main() {
+	fmt.Println(strings.Join(os.Environ(),"\n"))
 	cmd.Execute()
 }
