@@ -17,7 +17,7 @@ package cmd
 import (
 	"fmt"
 	"net"
-	"os"
+	"strings"
 	"sync"
 
 	"github.com/chanwit/belt/ssh"
@@ -26,30 +26,40 @@ import (
 )
 
 func SwarmUpdate(ip string, policy string) (string, error) {
-	sshcli, err := GetSSHClient(ip)
+	_, err := GetSSHClient(ip)
 	if err != nil {
 		return "", err
 	}
 
-	return sshcli.Output("docker swarm update --auto-accept " + policy)
+	// return sshcli.Output("docker swarm update --auto-accept " + policy)
+	return "", nil
 }
 
-func SwarmJoinAsMaster(ip string, prime string, secret string) (string, error) {
+func SwarmJoinAsMaster(ip string, prime string, token string) (string, error) {
 	sshcli, err := GetSSHClient(ip)
 	if err != nil {
 		return "", err
 	}
 
-	return sshcli.Output(fmt.Sprintf("docker swarm join --manager %s:2377 --secret %s", prime, secret))
+	return sshcli.Output(fmt.Sprintf("docker swarm join --listen-addr %s:2377 --advertise-addr %s:2377 --token %s %s", ip, ip, token, prime))
 }
 
-func SwarmJoinAsWorker(ip string, prime string, secret string) (string, error) {
+func SwarmJoinAsWorker(ip string, prime string, token string) (string, error) {
 	sshcli, err := GetSSHClient(ip)
 	if err != nil {
 		return "", err
 	}
 
-	return sshcli.Output(fmt.Sprintf("docker swarm join %s:2377 --secret %s", prime, secret))
+	return sshcli.Output(fmt.Sprintf("docker swarm join --listen-addr %s:2377 --advertise-addr %s:2377 --token %s %s", ip, ip, token, prime))
+}
+
+func SwarmToken(ip string, kind string) (string, error) {
+	sshcli, err := GetSSHClient(ip)
+	if err != nil {
+		return "", err
+	}
+
+	return sshcli.Output(fmt.Sprintf("docker swarm join-token -q %s", kind))
 }
 
 // joinCmd represents the join command
@@ -62,24 +72,37 @@ and usage of using your command. For example:
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		prime := args[0]
+	RunE: func(cmd *cobra.Command, args []string) error {
+		prime, err := util.GetActive()
+		if err != nil {
+			return err
+		}
 
-		isManager := cmd.Flag("manager").Value.String() == "true"
-		secret := cmd.Flag("secret").Value.String()
+		isManager, err := cmd.Flags().GetBool("manager")
+		if err != nil {
+			return err
+		}
 
 		ips := CacheIP()
 		if net.ParseIP(prime) == nil {
 			prime = ips[prime]
 		}
 
-		_ /*pwd*/, err := os.Getwd()
-		if err != nil {
-			fmt.Println(err.Error())
-			return
+		token := ""
+		if isManager {
+			token, err = SwarmToken(prime, "manager")
+			if err != nil {
+				return err
+			}
+		} else {
+			token, err = SwarmToken(prime, "worker")
+			if err != nil {
+				return err
+			}
 		}
+
 		nodes := []string{}
-		for i := 1; i < len(args); i++ {
+		for i := 0; i < len(args); i++ {
 			nodes = append(nodes, util.Generate(args[i])...)
 		}
 
@@ -111,12 +134,8 @@ to quickly create a Cobra application.`,
 							return
 						}
 
-						cmd := ""
-						if isManager {
-							cmd = "docker swarm join --manager " + prime + ":2377" + " --secret " + secret
-						} else {
-							cmd = "docker swarm join " + prime + ":2377" + " --secret " + secret
-						}
+						cmd := "docker swarm join --listen-addr %s:2377 --advertise-addr %s:2377 --token %s %s:2377"
+						cmd = fmt.Sprintf(cmd, ip, ip, strings.TrimSpace(token), prime)
 						sout, err := sshcli.Output(cmd)
 						if err != nil {
 							fmt.Println(err.Error())
@@ -131,12 +150,14 @@ to quickly create a Cobra application.`,
 
 		}
 
+		return nil
+
 		// set
 	},
 }
 
 func init() {
-	swarmCmd.AddCommand(joinCmd)
+	RootCmd.AddCommand(joinCmd)
 
 	// Here you will define your flags and configuration settings.
 
@@ -148,6 +169,6 @@ func init() {
 	// is called directly, e.g.:
 	// joinCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 	joinCmd.Flags().Bool("manager", false, "join as manager")
-	joinCmd.Flags().BoolP("enable-remote", "m", false, "allow remote connection to Engine")
-	joinCmd.Flags().StringP("secret", "s", "", "secret for cluster")
+	// joinCmd.Flags().BoolP("enable-remote", "m", false, "allow remote connection to Engine")
+	// joinCmd.Flags().StringP("secret", "s", "", "secret for cluster")
 }

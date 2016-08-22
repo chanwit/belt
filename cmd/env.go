@@ -16,15 +16,17 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
 
 	"github.com/chanwit/belt/util"
 	"github.com/spf13/cobra"
 )
 
-// activeCmd represents the active command
-var activeCmd = &cobra.Command{
-	Use:   "active",
-	Short: "set or show active node",
+// envCmd represents the env command
+var envCmd = &cobra.Command{
+	Use:   "env",
+	Short: "A brief description of your command",
 	Long: `A longer description that spans multiple lines and likely contains examples
 and usage of using your command. For example:
 
@@ -37,41 +39,48 @@ to quickly create a Cobra application.`,
 			return err
 		}
 
-		if len(args) == 0 {
-			// GET
-			node, err := util.GetActive()
-			if err != nil {
-				fmt.Println(err.Error())
-				return nil
-			}
-			fmt.Println(cluster + "/" + node)
-		} else if len(args) > 0 {
-			// SET
-			node := args[0]
-
-			err := util.SetActive(node)
-			if err != nil {
-				fmt.Println(err.Error())
-				return nil
-			}
-			fmt.Println(cluster + "/" + node)
+		activeNode, err := util.GetActive()
+		if err != nil {
+			return err
 		}
 
-		return nil
+		if val, _ := cmd.Flags().GetBool("unset"); val {
+			fmt.Printf("unset MACHINE_STORAGE_PATH\n")
+			machineCmd := exec.Command("docker-machine",
+				"env",
+				"-u",
+			)
+			machineCmd.Stdin = os.Stdin
+			machineCmd.Stdout = os.Stdout
+			machineCmd.Stderr = os.Stderr
+			return machineCmd.Run()
+		} else {
+			beltMachinePath := ".belt/" + cluster + "/machine"
+			fmt.Printf("export MACHINE_STORAGE_PATH=\"%s\"\n", beltMachinePath)
+			machineCmd := exec.Command("docker-machine",
+				"-s",
+				beltMachinePath,
+				"env",
+				activeNode,
+			)
+			machineCmd.Stdin = os.Stdin
+			machineCmd.Stdout = os.Stdout
+			machineCmd.Stderr = os.Stderr
+			return machineCmd.Run()
+		}
 	},
 }
 
 func init() {
-	RootCmd.AddCommand(activeCmd)
+	RootCmd.AddCommand(envCmd)
 
 	// Here you will define your flags and configuration settings.
 
 	// Cobra supports Persistent Flags which will work for this command
 	// and all subcommands, e.g.:
-	// activeCmd.PersistentFlags().String("foo", "", "A help for foo")
+	// envCmd.PersistentFlags().String("foo", "", "A help for foo")
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	// activeCmd.Flags().BoolP("cluster", "c", false, "set or get active cluster")
-
+	envCmd.Flags().BoolP("unset", "u", false, "Unset environment variables")
 }

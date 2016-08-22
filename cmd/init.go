@@ -73,14 +73,14 @@ func DrainNodes(ip string, nodes []string) (string, error) {
 	return strings.Join(result, "\n"), err
 }
 
-func SwarmInit(ip string, secret string) (string, error) {
+func SwarmInit(ip string) (string, error) {
 	sshcli, err := GetSSHClient(ip)
 	if err != nil {
 		return "", err
 	}
 
 	// use accept none
-	sout, err := sshcli.Output("docker swarm init --listen-addr " + ip + ":2377 --secret " + secret + " --auto-accept none")
+	sout, err := sshcli.Output("docker swarm init --listen-addr " + ip + ":2377 --advertise-addr " + ip + ":2377")
 	if err != nil {
 		fmt.Print(sout)
 	}
@@ -111,20 +111,29 @@ and usage of using your command. For example:
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) == 0 {
+			return fmt.Errorf("please specify machines")
+		}
+
 		node := args[0]
 		ip := GetIP(node)
 
-		secret := cmd.Flag("secret").Value.String()
-		if secret == "" {
-			fmt.Println("secret must be specified")
-			return
+		cluster, err := util.GetActiveCluster()
+		if err != nil {
+			return err
 		}
 
-		if cmd.Flag("enable-remote").Value.String() == "true" {
+		beltMachinePath := ".belt/" + cluster + "/machine"
+		if err != nil {
+			return err
+		}
+
+		if val, _ := cmd.Flags().GetBool("tls"); val {
 
 			machineCmd := exec.Command("docker-machine",
-				// "--debug",
+				"-s",
+				beltMachinePath,
 				"create",
 				"-d", "generic",
 				"--generic-ip-address="+ip,
@@ -133,25 +142,28 @@ to quickly create a Cobra application.`,
 			machineCmd.Stdin = os.Stdin
 			// machineCmd.Stdout = os.Stdout
 			machineCmd.Stderr = os.Stderr
-			fmt.Println("enable remote access with docker-machine ...")
+			fmt.Println("Enabling TLS with docker-machine ...")
 			err := machineCmd.Run()
 			if err != nil {
-				fmt.Println("Cannot execute docker-machine: " + err.Error())
-				return
+				fmt.Println("Error executing docker-machine: " + err.Error())
+				return err
 			}
 		}
 
-		sout, err := SwarmInit(ip, secret)
+		sout, err := SwarmInit(ip)
 		if err != nil {
 			fmt.Print(sout)
+			return err
 		}
 
 		util.SetActive(node)
+
+		return nil
 	},
 }
 
 func init() {
-	swarmCmd.AddCommand(initCmd)
+	RootCmd.AddCommand(initCmd)
 
 	// Here you will define your flags and configuration settings.
 
@@ -161,7 +173,5 @@ func init() {
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	initCmd.Flags().BoolP("enable-remote", "m", false, "allow remote connection to Engine")
-	initCmd.Flags().StringP("secret", "s", "", "secret for cluster")
-
+	initCmd.Flags().Bool("tls", true, "setup TLS for the Engine")
 }

@@ -178,7 +178,7 @@ to quickly create a Cobra application.`,
 		// swarm init
 		ips := cmdpkg.CacheIP()
 		primeIP := ips[genMasters[0]]
-		sout, err := cmdpkg.SwarmInit(primeIP, secret)
+		sout, err := cmdpkg.SwarmInit(primeIP)
 		if err != nil {
 			return err
 		}

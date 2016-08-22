@@ -71,6 +71,7 @@ var configTmpl = `
   endpoint = "unix:///var/run/docker.sock"
   timeout = "5s"
 
+# [[inputs.swarm]]
 `
 
 // monitorCmd represents the monitor command

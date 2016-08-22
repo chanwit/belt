@@ -37,19 +37,17 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		driver, err := cmd.Flags().GetString("driver")
-		if err != nil {
-			return err
-		}
 
 		cluster, err := util.GetActiveCluster()
 		if err != nil {
 			return err
 		}
 
-		if len(args) != 0 {
-			cluster = args[0]
-		}
+		/*
+			if len(args) != 0 {
+				cluster = args[0]
+			}
+		*/
 
 		config, err := ioutil.ReadFile(".belt/" + cluster + "/config.yaml")
 		if err != nil {
@@ -58,6 +56,12 @@ to quickly create a Cobra application.`,
 
 		data := make(map[string]map[string]string)
 		err = yaml.Unmarshal(config, &data)
+		if err != nil {
+			return err
+		}
+
+		// check driver
+		driver, err := cmd.Flags().GetString("driver")
 		if err != nil {
 			return err
 		}
@@ -76,6 +80,12 @@ to quickly create a Cobra application.`,
 		defines, err := cmd.Flags().GetStringSlice("define")
 		if err != nil {
 			return err
+		}
+
+		// use args
+		// preserve --define key=value for backward compat
+		if len(defines) == 0 {
+			defines = args
 		}
 
 		for _, d := range defines {
