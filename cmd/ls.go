@@ -25,7 +25,21 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func ListDroplets(droplets []*digitalocean.Droplet) {
+func ListDroplets() {
+	token := util.DegitalOcean.AccessToken()
+	resp, err := drivers.GetAllDroplets(token)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	if resp == nil {
+		PrintDroplets([]*digitalocean.Droplet{})
+	} else {
+		PrintDroplets(resp.Droplets)
+	}
+}
+
+func PrintDroplets(droplets []*digitalocean.Droplet) {
 	w := tabwriter.NewWriter(os.Stdout, 4, 4, 2, ' ', 0)
 	fmt.Fprintf(w, "NAME\tIPv4\tMEMORY\tREGION\tIMAGE\tSTATUS\n")
 	if droplets != nil {
@@ -53,17 +67,7 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		token := util.DegitalOcean.AccessToken()
-		resp, err := drivers.GetAllDroplets(token)
-		if err != nil {
-			fmt.Println(err.Error())
-			return
-		}
-		if resp == nil {
-			ListDroplets([]*digitalocean.Droplet{})
-		} else {
-			ListDroplets(resp.Droplets)
-		}
+		ListDroplets()
 	},
 }
 

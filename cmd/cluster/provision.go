@@ -133,7 +133,7 @@ to quickly create a Cobra application.`,
 		}
 
 		// print out masters first
-		cmdpkg.ListDroplets(masterDroplets.Droplets)
+		cmdpkg.PrintDroplets(masterDroplets.Droplets)
 
 		fmt.Printf("\r%d / %d manager nodes become active ...", 0, len(genMasters))
 		// 2. wait for masters to be active
@@ -217,7 +217,7 @@ to quickly create a Cobra application.`,
 
 			// print out workers
 			fmt.Println()
-			cmdpkg.ListDroplets(allworkerDroplets)
+			cmdpkg.PrintDroplets(allworkerDroplets)
 
 			// 5. wait for worker to be active
 			for {

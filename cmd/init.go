@@ -131,6 +131,11 @@ to quickly create a Cobra application.`,
 
 		if val, _ := cmd.Flags().GetBool("tls"); val {
 
+			err = os.RemoveAll(beltMachinePath + "/machines/" + node)
+			if err != nil {
+				return err
+			}
+
 			machineCmd := exec.Command("docker-machine",
 				"-s",
 				beltMachinePath,
@@ -150,6 +155,7 @@ to quickly create a Cobra application.`,
 			}
 		}
 
+		fmt.Printf("Initializing swarm mode on %s ...\n", node)
 		sout, err := SwarmInit(ip)
 		if err != nil {
 			fmt.Print(sout)
@@ -157,6 +163,9 @@ to quickly create a Cobra application.`,
 		}
 
 		util.SetActive(node)
+		fmt.Printf("Set %s to be the active host ...\n", node)
+
+		fmt.Printf("Run: 'eval $(belt env)' to configure %s as Docker host.\n", node)
 
 		return nil
 	},

@@ -94,14 +94,7 @@ to quickly create a Cobra application.`,
 				return
 			}
 
-			lines := strings.Split(string(bout), "\n")
-			for i, line := range lines {
-				if i == 0 || i%2 == 1 {
-					fmt.Println(line)
-				}
-			}
-			fmt.Println()
-
+			ListDroplets()
 		}
 
 	},
